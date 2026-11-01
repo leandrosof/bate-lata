@@ -12,6 +12,7 @@
         "db:migrate": "tsx scripts/migrate.ts",
         "db:seed": "tsx scripts/seed.ts",
         "db:setup": "yarn db:migrate && yarn db:seed",
+        "db:setup:prod": "tsx scripts/setup-prod.ts",
         "test": "tsx scripts/test.ts",
         "test:e2e": "playwright test",
         "db:demo": "tsx scripts/demo.ts",

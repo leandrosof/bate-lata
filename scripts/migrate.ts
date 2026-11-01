@@ -2,11 +2,16 @@ import { config } from "dotenv";
 
 config({ path: [".env.local", ".env"], quiet: true });
 
-if (!process.env.DATABASE_URL?.trim()) {
+const configuredUrl =
+  process.env.MIGRATE_DATABASE_URL?.trim() ||
+  process.env.DATABASE_URL_UNPOOLED?.trim() ||
+  process.env.DATABASE_URL?.trim();
+
+if (!configuredUrl) {
   process.env.DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54364/arena";
 }
 
-const url = process.env.DATABASE_URL?.trim();
+const url = configuredUrl || process.env.DATABASE_URL?.trim();
 
 async function run() {
   if (!url) {

@@ -44,6 +44,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# neon project context
+.neon
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
