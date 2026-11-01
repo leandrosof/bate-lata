@@ -1,0 +1,259 @@
+import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
+import { db } from "../client";
+import { attendances, draws, events, games, users } from "../schema";
+import type { EventRow } from "../schema";
+
+export type RosterPlayer = {
+  attendanceId: string;
+  userId: string;
+  name: string;
+  nickname: string | null;
+  avatarUpdatedAt: Date | null;
+  status: "CONFIRMED" | "WAITLIST" | "CANCELLED";
+  waitlistPosition: number | null;
+  rotationStatus: "IDLE" | "WAITING" | "PLAYING" | "LEFT" | "PAUSED";
+  checkedInAt: Date | null;
+  queuePosition: number | null;
+  gamesPlayed: number;
+  since: Date;
+};
+
+export type EventSummary = EventRow & {
+  confirmedCount: number;
+  waitlistCount: number;
+};
+
+export type OperationalEvent = EventSummary & {
+  active: boolean;
+  activeSessionStartedAt: Date | null;
+  activeHours: number;
+};
+
+async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
+  if (rows.length === 0) return [];
+  const counts = await db
+    .select({
+      eventId: attendances.eventId,
+      status: attendances.status,
+      total: count(),
+    })
+    .from(attendances)
+    .groupBy(attendances.eventId, attendances.status);
+
+  return rows.map((event) => {
+    const confirmedCount = counts
+      .filter((row) => row.eventId === event.id && row.status === "CONFIRMED")
+      .reduce((total, row) => total + Number(row.total), 0);
+    const waitlistCount = counts
+      .filter((row) => row.eventId === event.id && row.status === "WAITLIST")
+      .reduce((total, row) => total + Number(row.total), 0);
+    return { ...event, confirmedCount, waitlistCount };
+  });
+}
+
+export async function getEventById(eventId: string): Promise<EventSummary | null> {
+  const rows = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+  if (!rows[0]) return null;
+  const [summary] = await attachCounts(rows);
+  return summary;
+}
+
+export async function getNextEvent(reference = new Date()): Promise<EventSummary | null> {
+  const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
+  const rows = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.status, "SCHEDULED"), gte(events.startsAt, threshold)))
+    .orderBy(asc(events.startsAt))
+    .limit(1);
+  const [summary] = await attachCounts(rows);
+  return summary ?? null;
+}
+
+export async function listUpcomingEvents(reference = new Date()): Promise<EventSummary[]> {
+  const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
+  const rows = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.status, "SCHEDULED"), gte(events.startsAt, threshold)))
+    .orderBy(asc(events.startsAt));
+  return attachCounts(rows);
+}
+
+export async function listOperationalEvents(reference = new Date()): Promise<OperationalEvent[]> {
+  const upcoming = await listUpcomingEvents(reference);
+
+  const activeDraws = await db
+    .select({ eventId: draws.eventId, startedAt: draws.createdAt })
+    .from(draws)
+    .where(eq(draws.status, "IN_PROGRESS"))
+    .orderBy(desc(draws.createdAt));
+
+  const liveGames = await db
+    .select({
+      eventId: games.eventId,
+      startedAt: games.startedAt,
+      createdAt: games.createdAt,
+    })
+    .from(games)
+    .where(eq(games.status, "IN_PROGRESS"));
+
+  const activeStartedAt = new Map<string, Date>();
+  for (const row of activeDraws) {
+    if (!activeStartedAt.has(row.eventId)) activeStartedAt.set(row.eventId, row.startedAt);
+  }
+  for (const row of liveGames) {
+    if (!activeStartedAt.has(row.eventId)) {
+      activeStartedAt.set(row.eventId, row.startedAt ?? row.createdAt);
+    }
+  }
+
+  const upcomingIds = new Set(upcoming.map((event) => event.id));
+  const missingIds = [...activeStartedAt.keys()].filter((id) => !upcomingIds.has(id));
+  const extraRows =
+    missingIds.length > 0
+      ? await db.select().from(events).where(inArray(events.id, missingIds))
+      : [];
+  const extra = await attachCounts(extraRows);
+
+  const combined: OperationalEvent[] = [
+    ...upcoming.map((event) => ({
+      ...event,
+      active: activeStartedAt.has(event.id),
+      activeSessionStartedAt: activeStartedAt.get(event.id) ?? null,
+      activeHours: activeStartedAt.get(event.id)
+        ? Math.max(
+            0,
+            Math.floor((reference.getTime() - activeStartedAt.get(event.id)!.getTime()) / 3600000),
+          )
+        : 0,
+    })),
+    ...extra.map((event) => ({
+      ...event,
+      active: true,
+      activeSessionStartedAt: activeStartedAt.get(event.id) ?? null,
+      activeHours: activeStartedAt.get(event.id)
+        ? Math.max(
+            0,
+            Math.floor((reference.getTime() - activeStartedAt.get(event.id)!.getTime()) / 3600000),
+          )
+        : 0,
+    })),
+  ];
+
+  combined.sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    return a.startsAt.getTime() - b.startsAt.getTime();
+  });
+
+  return combined;
+}
+
+export async function getActiveOperationalEvent(
+  reference = new Date(),
+): Promise<OperationalEvent | null> {
+  const events = await listOperationalEvents(reference);
+  return events.find((event) => event.active) ?? null;
+}
+
+export async function listRecentEvents(limit = 6): Promise<EventSummary[]> {
+  const rows = await db.select().from(events).orderBy(desc(events.startsAt)).limit(limit);
+  return attachCounts(rows);
+}
+
+export async function listAllEvents(limit = 80): Promise<EventSummary[]> {
+  const rows = await db.select().from(events).orderBy(desc(events.startsAt)).limit(limit);
+  return attachCounts(rows);
+}
+
+export async function getEventRoster(eventId: string): Promise<{
+  confirmed: RosterPlayer[];
+  waitlist: RosterPlayer[];
+  pending: { userId: string; name: string; nickname: string | null; avatarUpdatedAt: Date | null }[];
+  cancelled: RosterPlayer[];
+}> {
+  const rows = await db
+    .select({
+      attendanceId: attendances.id,
+      userId: users.id,
+      name: users.name,
+      nickname: users.nickname,
+      avatarUpdatedAt: users.avatarUpdatedAt,
+      status: attendances.status,
+      waitlistPosition: attendances.waitlistPosition,
+      rotationStatus: attendances.rotationStatus,
+      checkedInAt: attendances.checkedInAt,
+      queuePosition: attendances.queuePosition,
+      gamesPlayed: attendances.gamesPlayed,
+      since: attendances.createdAt,
+    })
+    .from(attendances)
+    .innerJoin(users, eq(users.id, attendances.userId))
+    .where(eq(attendances.eventId, eventId))
+    .orderBy(asc(attendances.waitlistPosition), asc(attendances.createdAt));
+
+  const confirmed = rows
+    .filter((row) => row.status === "CONFIRMED")
+    .sort((a, b) => a.since.getTime() - b.since.getTime());
+  const waitlist = rows
+    .filter((row) => row.status === "WAITLIST")
+    .sort((a, b) => (a.waitlistPosition ?? 0) - (b.waitlistPosition ?? 0));
+  const cancelled = rows.filter((row) => row.status === "CANCELLED");
+
+  const listed = new Set(rows.filter((row) => row.status !== "CANCELLED").map((row) => row.userId));
+  const activeUsers = await db
+    .select({
+      userId: users.id,
+      name: users.name,
+      nickname: users.nickname,
+      avatarUpdatedAt: users.avatarUpdatedAt,
+    })
+    .from(users)
+    .where(eq(users.active, true))
+    .orderBy(asc(users.name));
+
+  const pending = activeUsers.filter((user) => !listed.has(user.userId));
+
+  return { confirmed, waitlist, pending, cancelled };
+}
+
+export async function listConfirmedPlayers(eventId: string) {
+  return db
+    .select({
+      userId: users.id,
+      name: users.name,
+      nickname: users.nickname,
+      avatarUpdatedAt: users.avatarUpdatedAt,
+    })
+    .from(attendances)
+    .innerJoin(users, eq(users.id, attendances.userId))
+    .where(
+      and(
+        eq(attendances.eventId, eventId),
+        eq(attendances.status, "CONFIRMED"),
+        eq(users.active, true),
+      ),
+    )
+    .orderBy(asc(users.name));
+}
+
+export async function listConfirmedCount(eventId: string): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(attendances)
+    .where(and(eq(attendances.eventId, eventId), eq(attendances.status, "CONFIRMED")));
+  return Number(row?.total ?? 0);
+}
+
+export async function getAttendanceMap(userId: string) {
+  const rows = await db
+    .select({
+      eventId: attendances.eventId,
+      status: attendances.status,
+      waitlistPosition: attendances.waitlistPosition,
+    })
+    .from(attendances)
+    .where(eq(attendances.userId, userId));
+
+  return new Map(rows.map((row) => [row.eventId, row]));
+}
