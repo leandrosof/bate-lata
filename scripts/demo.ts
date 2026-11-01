@@ -3,7 +3,7 @@ import { config } from "dotenv";
 config({ path: [".env.local", ".env"], quiet: true });
 
 if (!process.env.DATABASE_URL?.trim()) {
-  process.env.DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54320/arena";
+  process.env.DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54364/arena";
 }
 
 const DEMO_PASSWORD = "Arena@2026";

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Clock, MapPin, Users } from "lucide-react";
 import { AttendanceControls } from "@/components/features/attendance-controls";
+import { OrganizerToggle } from "@/components/features/organizer-toggle";
+import { EventCalendar } from "@/components/features/event-calendar";
+import { ShareEventButton } from "@/components/features/share-event-button";
 import { EventStatusBadge } from "@/components/features/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { getAttendanceMap, listOperationalEvents } from "@/db/queries/events";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { countdownLabel, dayParts, formatDateTime } from "@/lib/time";
+import { countdownLabel, dayParts, formatDateTime, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Próximos jogos" };
@@ -21,6 +24,20 @@ export default async function UpcomingPage() {
   const settings = await getSettings();
   const events = await listOperationalEvents();
   const attendanceMap = await getAttendanceMap(user.id);
+  const calendarEvents = events.map((event) => ({
+    id: event.id,
+    title: event.title,
+    startsAt: event.startsAt.toISOString(),
+    endsAt: event.endsAt?.toISOString() ?? null,
+    venueName: event.venueName,
+    address: event.address,
+    maxPlayers: event.maxPlayers,
+    confirmedCount: event.confirmedCount,
+    waitlistCount: event.waitlistCount,
+    publicToken: event.publicToken,
+    coverMime: event.coverMime,
+    coverUpdatedAt: event.coverUpdatedAt?.toISOString() ?? null,
+  }));
 
   return (
     <div>
@@ -37,6 +54,10 @@ export default async function UpcomingPage() {
           ) : undefined
         }
       />
+
+      <div className="mb-4">
+        <EventCalendar events={calendarEvents} isAdmin={user.role === "ADMIN"} />
+      </div>
 
       {events.length === 0 ? (
         <EmptyState
@@ -83,6 +104,7 @@ export default async function UpcomingPage() {
                         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
                           <Clock className="h-3.5 w-3.5" aria-hidden />
                           {formatDateTime(event.startsAt, settings.timezone)}
+                          {event.endsAt ? ` – ${formatTime(event.endsAt, settings.timezone)}` : ""}
                         </p>
                         <p className="mt-0.5 flex items-start gap-1.5 text-sm text-muted">
                           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -94,12 +116,24 @@ export default async function UpcomingPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
-                      <Badge tone={mine?.status === "CONFIRMED" ? "success" : mine?.status === "WAITLIST" ? "warning" : "neutral"}>
-                        {mine?.status === "CONFIRMED"
-                          ? "Você vai"
-                          : mine?.status === "WAITLIST"
-                            ? `${mine.waitlistPosition}º na fila`
-                            : "Não confirmou"}
+                      <Badge
+                        tone={
+                          mine?.isOrganizer
+                            ? "brand"
+                            : mine?.status === "CONFIRMED"
+                              ? "success"
+                              : mine?.status === "WAITLIST"
+                                ? "warning"
+                                : "neutral"
+                        }
+                      >
+                        {mine?.isOrganizer
+                          ? "Organizando"
+                          : mine?.status === "CONFIRMED"
+                            ? "Você vai"
+                            : mine?.status === "WAITLIST"
+                              ? `${mine.waitlistPosition}º na fila`
+                              : "Não confirmou"}
                       </Badge>
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                         {countdownLabel(event.startsAt, settings.timezone)}
@@ -129,16 +163,25 @@ export default async function UpcomingPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <AttendanceControls
-                      eventId={event.id}
-                      status={mine?.status ?? null}
-                      waitlistPosition={mine?.waitlistPosition ?? null}
-                      isFull={isFull}
-                      allowWaitlist={settings.allowWaitlist}
-                      isOrganizer={Boolean(mine?.isOrganizer)}
-                      size="sm"
-                      block={false}
-                    />
+                    {user.role === "ADMIN" ? (
+                      <OrganizerToggle
+                        eventId={event.id}
+                        attendanceId={mine?.attendanceId}
+                        isOrganizer={Boolean(mine?.isOrganizer)}
+                        isAdmin
+                      />
+                    ) : (
+                      <AttendanceControls
+                        eventId={event.id}
+                        status={mine?.status ?? null}
+                        waitlistPosition={mine?.waitlistPosition ?? null}
+                        isFull={isFull}
+                        allowWaitlist={settings.allowWaitlist}
+                        isOrganizer={Boolean(mine?.isOrganizer)}
+                        size="sm"
+                        block={false}
+                      />
+                    )}
                     <Link
                       href={`/presencas?evento=${event.id}`}
                       className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
@@ -152,6 +195,9 @@ export default async function UpcomingPage() {
                     >
                       Racha
                     </Link>
+                    {event.publicToken ? (
+                      <ShareEventButton token={event.publicToken} title={event.title} />
+                    ) : null}
                   </div>
                 </CardBody>
               </Card>

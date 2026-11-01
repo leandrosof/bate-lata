@@ -36,6 +36,20 @@
       "when": 1793500525270,
       "tag": "0004_burly_hellion",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793553721776,
+      "tag": "0005_volatile_warpath",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793553744918,
+      "tag": "0006_serious_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

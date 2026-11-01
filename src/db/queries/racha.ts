@@ -11,6 +11,7 @@ export type RachaPlayerView = {
   avatarUpdatedAt: Date | null;
   rotationStatus: "IDLE" | "WAITING" | "PLAYING" | "LEFT" | "PAUSED";
   queuePosition: number | null;
+  queueTeamId: string | null;
   gamesPlayed: number;
   checkedInAt: Date | null;
 };
@@ -77,6 +78,7 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
       avatarUpdatedAt: users.avatarUpdatedAt,
       rotationStatus: attendances.rotationStatus,
       queuePosition: attendances.queuePosition,
+      queueTeamId: attendances.queueTeamId,
       gamesPlayed: attendances.gamesPlayed,
       checkedInAt: attendances.checkedInAt,
     })

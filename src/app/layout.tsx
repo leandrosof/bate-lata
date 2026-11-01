@@ -16,12 +16,14 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   let siteName = "Arena do Vôlei";
   let tagline = "Organize. Sorteie. Jogue.";
-  let logoUrl = "/logo.png";
+  let logoUrl = "/icon-192.png";
   try {
     const settings = await getSettings();
     siteName = settings.siteName;
     tagline = settings.tagline;
-    logoUrl = settings.logoUrl || logoUrl;
+    logoUrl = settings.logoData
+      ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
+      : settings.logoUrl || logoUrl;
   } catch {
     // mantém os padrões quando o banco ainda não está configurado
   }
@@ -33,7 +35,16 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: siteName,
     manifest: "/manifest.webmanifest",
     icons: {
-      icon: [{ url: logoUrl, type: logoUrl.endsWith(".svg") ? "image/svg+xml" : "image/png" }],
+      icon: [
+        {
+          url: logoUrl,
+          type: logoUrl.endsWith(".svg")
+            ? "image/svg+xml"
+            : logoUrl.startsWith("/api/logo")
+              ? "image/webp"
+              : "image/png",
+        },
+      ],
       apple: [{ url: "/apple-icon.png", type: "image/png" }],
     },
     appleWebApp: { capable: true, title: siteName, statusBarStyle: "black-translucent" },

@@ -3,6 +3,9 @@ import { getSettings } from "@/lib/settings";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings();
+  const logoUrl = settings.logoData
+    ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
+    : settings.logoUrl;
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
@@ -15,7 +18,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
         <Brand
           siteName={settings.siteName}
           tagline={settings.tagline}
-          logoUrl={settings.logoUrl || "/logo.png"}
+          logoUrl={logoUrl}
           href="/"
         />
       </header>

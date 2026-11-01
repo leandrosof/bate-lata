@@ -34,6 +34,15 @@ export function orderQueue(
   return copy;
 }
 
+export function chunkQueue<T>(players: readonly T[], teamSize: number): T[][] {
+  const size = Math.max(1, Math.trunc(teamSize));
+  const chunks: T[][] = [];
+  for (let index = 0; index < players.length; index += size) {
+    chunks.push(players.slice(index, index + size));
+  }
+  return chunks;
+}
+
 export function planFirstMatch(
   players: readonly RachaPlayer[],
   teamSize: number,
@@ -112,19 +121,7 @@ export function planNextMatch(input: {
     return { ok: false, missing: teamSize - candidates.length };
   }
 
-  let opponent: RachaPlayer[] = [];
-  const firstBlockId = candidates[0]?.blockId;
-  if (firstBlockId) {
-    let end = 0;
-    while (end < candidates.length && candidates[end].blockId === firstBlockId) end += 1;
-    if (end >= teamSize) {
-      opponent = candidates.slice(0, teamSize);
-    }
-  }
-
-  if (opponent.length < teamSize) {
-    opponent = orderQueue(candidates, rule).slice(0, teamSize);
-  }
+  const opponent = orderQueue(candidates, rule).slice(0, teamSize);
 
   const selected = new Set(opponent.map((player) => player.userId));
   const queue = candidates

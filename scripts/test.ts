@@ -5,7 +5,7 @@ import { ensureLocalPostgres, localDatabaseUrl } from "./local-db";
 config({ path: [".env.local", ".env"], quiet: true });
 
 const watch = process.argv.includes("--watch");
-const databasePort = 54322;
+const databasePort = 54366;
 const databaseName = "arena_test";
 const databaseDir = ".data/test/postgres";
 

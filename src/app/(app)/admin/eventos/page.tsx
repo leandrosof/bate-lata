@@ -1,17 +1,22 @@
+import Link from "next/link";
 import { Briefcase, CalendarDays, Clock, MapPin, Users } from "lucide-react";
-import { createEventAction, setEventStatusAction, updateEventAction } from "@/actions/admin";
+import { setEventStatusAction, updateEventAction } from "@/actions/admin";
 import { ActionButton } from "@/components/ui/action-button";
 import { ActionForm } from "@/components/ui/action-form";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardBody } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { EventCoverUpload } from "@/components/features/image-uploads";
+import { ShareEventButton } from "@/components/features/share-event-button";
 import { Progress } from "@/components/ui/progress";
 import { listAllEvents } from "@/db/queries/events";
 import { getSettings } from "@/lib/settings";
-import { toDateTimeLocal } from "@/lib/time";
+import { formatTime, toDateTimeLocal } from "@/lib/time";
+import { cn } from "@/lib/utils";
 import type { EventRow } from "@/db/schema";
 
 export const metadata = { title: "Eventos" };
@@ -41,16 +46,30 @@ function EventFields({
           placeholder="Ex.: Vôlei de sábado"
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <Label htmlFor={`${idPrefix}-starts`} required>
-            Data e hora
+            Início
           </Label>
           <Input
             id={`${idPrefix}-starts`}
             name="startsAt"
             type="datetime-local"
             defaultValue={event ? toDateTimeLocal(event.startsAt, timeZone) : ""}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor={`${idPrefix}-ends`} required>
+            Fim
+          </Label>
+          <Input
+            id={`${idPrefix}-ends`}
+            name="endsAt"
+            type="datetime-local"
+            defaultValue={
+              event?.endsAt ? toDateTimeLocal(event.endsAt, timeZone) : ""
+            }
             required
           />
         </div>
@@ -116,20 +135,19 @@ export default async function AdminEventsPage() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle>Criar novo evento</CardTitle>
-          <Badge tone="brand">Novo</Badge>
-        </CardHeader>
-        <CardBody className="pt-2">
-          <ActionForm
-            action={createEventAction}
-            submitLabel="Criar evento"
-            pendingLabel="Criando..."
-            resetOnSuccess
-            submitIcon={<CalendarDays className="h-4 w-4" aria-hidden />}
-          >
-            <EventFields timeZone={settings.timezone} idPrefix="new" />
-          </ActionForm>
+        <CardBody className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-display text-lg font-semibold uppercase tracking-wide text-white">
+              Agendar novo evento
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              A criação agora é feita pelo calendário, escolhendo o dia do jogo.
+            </p>
+          </div>
+          <Link href="/jogos" className={cn(buttonVariants({ variant: "primary", size: "sm" }))}>
+            <CalendarDays className="h-4 w-4" aria-hidden />
+            Abrir calendário
+          </Link>
         </CardBody>
       </Card>
 
@@ -139,7 +157,7 @@ export default async function AdminEventsPage() {
           <EmptyState
             icon={<CalendarDays className="h-5 w-5" />}
             title="Nenhum evento criado"
-            description="Use o formulário acima para agendar o primeiro encontro do grupo."
+            description="Abra o calendário em Próximos jogos para agendar o primeiro encontro do grupo."
           />
         ) : (
           <div className="space-y-2">
@@ -173,6 +191,7 @@ export default async function AdminEventsPage() {
                         <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
                           <Clock className="h-3.5 w-3.5" aria-hidden />
                           {toDateTimeLocal(event.startsAt, settings.timezone).replace("T", " · ")}
+                          {event.endsAt ? ` – ${formatTime(event.endsAt, settings.timezone)}` : ""}
                         </p>
                         <p className="flex items-center gap-1.5 text-xs text-muted">
                           <MapPin className="h-3.5 w-3.5" aria-hidden />
@@ -226,7 +245,9 @@ export default async function AdminEventsPage() {
                       >
                         Marcar realizado
                       </ActionButton>
-
+                      {event.publicToken ? (
+                        <ShareEventButton token={event.publicToken} title={event.title} />
+                      ) : null}
                     </div>
 
                     <Disclosure
@@ -234,6 +255,13 @@ export default async function AdminEventsPage() {
                       subtitle={`${event.confirmedCount} confirmados · ${event.waitlistCount} na espera`}
                       action={<Briefcase className="h-4 w-4 text-muted" aria-hidden />}
                     >
+                      <div className="mb-3 space-y-2">
+                        <EventCoverUpload
+                          eventId={event.id}
+                          hasCover={Boolean(event.coverMime)}
+                          version={event.coverUpdatedAt?.getTime() ?? null}
+                        />
+                      </div>
                       <ActionForm
                         action={updateEventAction}
                         hiddenFields={{ eventId: event.id }}

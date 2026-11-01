@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Move, X, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getAvatarCropGeometry } from "@/lib/avatar-crop";
+
+const PREVIEW_SIZE = 224;
 
 export function AvatarCropDialog({
   open,
@@ -15,6 +18,7 @@ export function AvatarCropDialog({
   onSaved: () => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [x, setX] = useState(50);
   const [y, setY] = useState(50);
   const [zoom, setZoom] = useState(1);
@@ -31,7 +35,10 @@ export function AvatarCropDialog({
         if (!response.ok) throw new Error("Sem imagem original.");
         const blob = await response.blob();
         objectUrl = URL.createObjectURL(blob);
-        if (!cancelled) setSrc(objectUrl);
+        if (!cancelled) {
+          setNatural(null);
+          setSrc(objectUrl);
+        }
       })
       .catch(() => {
         if (!cancelled) setError("Reenvie a foto para poder reposicionar.");
@@ -44,6 +51,11 @@ export function AvatarCropDialog({
   }, [open]);
 
   if (!open || typeof document === "undefined") return null;
+
+  const geometry = natural
+    ? getAvatarCropGeometry(natural.width, natural.height, x / 100, y / 100, zoom)
+    : null;
+  const scale = geometry ? PREVIEW_SIZE / geometry.size : 1;
 
   async function save() {
     setBusy(true);
@@ -90,17 +102,32 @@ export function AvatarCropDialog({
         </div>
 
         <div className="space-y-3 p-4">
-          <div className="mx-auto h-56 w-56 overflow-hidden rounded-full border border-line bg-surface-3">
+          <div
+            className="relative mx-auto overflow-hidden rounded-full border border-line bg-surface-3"
+            style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+          >
             {src ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={src}
                 alt="Prévia do avatar"
-                className="h-full w-full object-cover transition-transform"
-                style={{
-                  objectPosition: `${x}% ${y}%`,
-                  transform: `scale(${zoom})`,
-                }}
+                onLoad={(event) =>
+                  setNatural({
+                    width: event.currentTarget.naturalWidth,
+                    height: event.currentTarget.naturalHeight,
+                  })
+                }
+                className="absolute max-w-none"
+                style={
+                  natural && geometry
+                    ? {
+                        width: natural.width * scale,
+                        height: natural.height * scale,
+                        left: -geometry.left * scale,
+                        top: -geometry.top * scale,
+                      }
+                    : { width: PREVIEW_SIZE, height: PREVIEW_SIZE, objectFit: "cover" }
+                }
               />
             ) : (
               <div className="flex h-full items-center justify-center">

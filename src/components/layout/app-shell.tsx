@@ -18,12 +18,15 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const isAdmin = user.role === "ADMIN";
+  const logoUrl = settings.logoData
+    ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
+    : settings.logoUrl;
 
   return (
     <div className="min-h-dvh">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface/90 backdrop-blur-2xl lg:flex">
         <div className="px-5 py-6">
-          <Brand siteName={settings.siteName} tagline={settings.tagline} logoUrl={settings.logoUrl || "/logo.png"} />
+          <Brand siteName={settings.siteName} tagline={settings.tagline} logoUrl={logoUrl} />
         </div>
         <SidebarLinks isAdmin={isAdmin} rankingEnabled={settings.rankingEnabled} />
         <div className="border-t border-line/60 p-3">
@@ -58,7 +61,7 @@ export function AppShell({
               compact
               siteName={settings.siteName}
               tagline={settings.tagline}
-              logoUrl={settings.logoUrl || "/logo.png"}
+              logoUrl={logoUrl}
             />
             <div className="flex items-center gap-2.5">
               {isAdmin ? (

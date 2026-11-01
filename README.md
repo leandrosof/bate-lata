@@ -41,7 +41,7 @@ yarn dev
 
 O comando `yarn dev` faz tudo:
 
-1. inicia um **PostgreSQL 18 local** na porta `54320` (dados em `.data/postgres`);
+1. inicia um **PostgreSQL 18 local** na porta `54364` (dados em `.data/postgres`);
 2. aplica as migrações e cria as configurações/temporada padrão;
 3. sobe o Next.js em **http://localhost:3000**.
 
@@ -79,8 +79,8 @@ basta alterar `DATABASE_URL` em `.env.local`.
 | `yarn start` | Sobe o build já gerado (requer `DATABASE_URL` acessível) |
 | `yarn lint` | ESLint |
 | `yarn typecheck` | TypeScript sem emitir arquivos |
-| `yarn test` | Vitest: testes unitários e de integração (sobe um Postgres isolado em `:54322`) |
-| `yarn test:e2e` | Playwright: fluxos completos em `:3100` com banco próprio em `:54321` |
+| `yarn test` | Vitest: testes unitários e de integração (sobe um Postgres isolado em `:54366`) |
+| `yarn test:e2e` | Playwright: fluxos completos em `:3100` com banco próprio em `:54365` |
 | `yarn db:migrate` | Aplica migrações em `DATABASE_URL` |
 | `yarn db:seed` | Garante configurações e temporada ativa |
 | `yarn db:setup` | `db:migrate` + `db:seed` |

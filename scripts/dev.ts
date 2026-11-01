@@ -6,7 +6,7 @@ config({ path: [".env.local", ".env"], quiet: true });
 
 const isE2E = process.argv.includes("--e2e");
 const nextPort = isE2E ? 3100 : 3000;
-const databasePort = isE2E ? 54321 : 54320;
+const databasePort = isE2E ? 54365 : 54364;
 const databaseName = isE2E ? "arena_e2e" : "arena";
 const databaseDir = isE2E ? ".data/e2e/postgres" : ".data/postgres";
 

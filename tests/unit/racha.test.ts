@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chunkQueue,
   orderQueue,
   planFirstMatch,
   planNextMatch,
@@ -50,6 +51,16 @@ describe("orderQueue", () => {
       "WINNER_STAYS",
     );
     expect(ordered.map((entry) => entry.userId)).toEqual(["b", "a"]);
+  });
+});
+
+describe("chunkQueue", () => {
+  it("forma times reservas por blocos consecutivos", () => {
+    const chunks = chunkQueue(["a", "b", "c", "d", "e", "f", "g"], 5);
+    expect(chunks).toEqual([
+      ["a", "b", "c", "d", "e"],
+      ["f", "g"],
+    ]);
   });
 });
 

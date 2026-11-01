@@ -33,12 +33,13 @@ import { shuffle } from "@/lib/draw";
 import { getSessionUser } from "@/lib/session";
 import { teamVisualForIndex } from "@/lib/teams";
 import {
+  eventIdSchema,
   gameIdSchema,
   rachaAddPlayerSchema,
   rachaAttendanceSchema,
   rachaCourtSchema,
   rachaQueueModeSchema,
-  rachaQueueMoveSchema,
+  rachaQueueSwapSchema,
   rachaSessionSchema,
   rachaStartSchema,
   rachaSubstitutionSchema,
@@ -619,9 +620,11 @@ export async function addToRachaAction(
           .update(attendances)
           .set({
             status: "CONFIRMED",
+            isOrganizer: false,
             checkedInAt: new Date(),
             rotationStatus: "WAITING",
             queuePosition: Number(maxRow?.position ?? 0) + 1,
+            queueTeamId: null,
             leftAt: null,
             updatedAt: new Date(),
           })
@@ -1865,11 +1868,93 @@ export async function setQueueModeAction(
   }
 }
 
-export async function moveQueuePlayerAction(
+export async function swapQueuePlayersAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const parsed = rachaQueueMoveSchema.safeParse(Object.fromEntries(formData));
+  const parsed = rachaQueueSwapSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+  if (parsed.data.attendanceId === parsed.data.targetAttendanceId) {
+    return fail("Escolha outro jogador para trocar.");
+  }
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    await db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(attendances)
+        .where(
+          inArray(attendances.id, [
+            parsed.data.attendanceId,
+            parsed.data.targetAttendanceId,
+          ]),
+        )
+        .for("update");
+      if (rows.length !== 2) throw new AppError("Jogador não encontrado na fila.");
+
+      const [first, second] = rows.sort((a, b) => a.id.localeCompare(b.id));
+      const source =
+        first.id === parsed.data.attendanceId ? first : second;
+      const target =
+        first.id === parsed.data.targetAttendanceId ? first : second;
+
+      if (
+        source.eventId !== target.eventId ||
+        source.rotationStatus !== "WAITING" ||
+        target.rotationStatus !== "WAITING"
+      ) {
+        throw new AppError("Os dois jogadores precisam estar na fila de espera.");
+      }
+
+      await tx
+        .update(attendances)
+        .set({
+          queuePosition: target.queuePosition,
+          queueTeamId: target.queueTeamId,
+          updatedAt: new Date(),
+        })
+        .where(eq(attendances.id, source.id));
+      await tx
+        .update(attendances)
+        .set({
+          queuePosition: source.queuePosition,
+          queueTeamId: source.queueTeamId,
+          updatedAt: new Date(),
+        })
+        .where(eq(attendances.id, target.id));
+    });
+
+    revalidatePath("/", "layout");
+    return success("Jogadores trocados de posição.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function ensurePlayerAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = eventIdSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  const playerForm = new FormData();
+  playerForm.set("eventId", parsed.data.eventId);
+  playerForm.set("userId", actor.id);
+  return addToRachaAction(_state, playerForm);
+}
+
+export async function ensureOrganizerAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = eventIdSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail(firstZodMessage(parsed.error));
 
   const actor = await getSessionUser();
@@ -1877,49 +1962,49 @@ export async function moveQueuePlayerAction(
 
   try {
     await db.transaction(async (tx) => {
-      const [row] = await tx
+      const [event] = await tx
         .select()
-        .from(attendances)
-        .where(eq(attendances.id, parsed.data.attendanceId))
+        .from(events)
+        .where(eq(events.id, parsed.data.eventId))
         .for("update")
         .limit(1);
-      if (!row) throw new AppError("Presença não encontrada.");
-      if (row.rotationStatus !== "WAITING") {
-        throw new AppError("Este jogador não está na fila de espera.");
-      }
+      if (!event) throw new AppError("Evento não encontrado.");
 
-      const queue = await tx
-        .select({ id: attendances.id })
+      const [existing] = await tx
+        .select()
         .from(attendances)
         .where(
           and(
-            eq(attendances.eventId, row.eventId),
-            eq(attendances.rotationStatus, "WAITING"),
-            eq(attendances.isOrganizer, false),
+            eq(attendances.eventId, event.id),
+            eq(attendances.userId, actor.id),
           ),
         )
-        .orderBy(asc(attendances.queuePosition), asc(attendances.createdAt));
+        .limit(1);
 
-      const currentIndex = queue.findIndex((item) => item.id === row.id);
-      const targetIndex =
-        parsed.data.direction === "up" ? currentIndex - 1 : currentIndex + 1;
-      if (targetIndex < 0 || targetIndex >= queue.length) {
-        throw new AppError("Este jogador já está no limite da fila.");
-      }
-
-      const reordered = [...queue];
-      const [moved] = reordered.splice(currentIndex, 1);
-      reordered.splice(targetIndex, 0, moved);
-      for (let index = 0; index < reordered.length; index += 1) {
+      if (existing) {
         await tx
           .update(attendances)
-          .set({ queuePosition: index + 1, updatedAt: new Date() })
-          .where(eq(attendances.id, reordered[index].id));
+          .set({
+            status: "CONFIRMED",
+            isOrganizer: true,
+            rotationStatus: "IDLE",
+            queuePosition: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(attendances.id, existing.id));
+      } else {
+        await tx.insert(attendances).values({
+          eventId: event.id,
+          userId: actor.id,
+          status: "CONFIRMED",
+          isOrganizer: true,
+          rotationStatus: "IDLE",
+        });
       }
     });
 
     revalidatePath("/", "layout");
-    return success("Fila atualizada.");
+    return success("Agora você está apenas organizando.");
   } catch (error) {
     return actionFailure(error);
   }

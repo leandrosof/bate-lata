@@ -1,8 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowDown,
   ArrowRight,
-  ArrowUp,
   Flag,
   ListOrdered,
   LogIn,
@@ -26,16 +24,16 @@ import {
   finalizeMatchAction,
   leaveRachaAction,
   mixNextMatchAction,
-  moveQueuePlayerAction,
   openCourtAction,
   restartRachaAction,
-  setQueueModeAction,
   startMatchAction,
   startRachaAction,
   substitutePlayerAction,
   undoRachaAction,
 } from "@/actions/racha";
 import { EventPicker } from "@/components/features/event-picker";
+import { OrganizerToggle } from "@/components/features/organizer-toggle";
+import { QueueSwapDialog } from "@/components/features/queue-swap-dialog";
 import { DrawStatusBadge } from "@/components/features/status-badge";
 import { TeamCard, TeamPill } from "@/components/features/team-card";
 import { ActionButton } from "@/components/ui/action-button";
@@ -52,6 +50,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { getEventById, getEventRoster, listOperationalEvents } from "@/db/queries/events";
 import { getRachaView } from "@/db/queries/racha";
 import { requireUser } from "@/lib/auth";
+import { chunkQueue } from "@/lib/racha";
 import { getSettings } from "@/lib/settings";
 import { TEAM_SIZE_OPTIONS } from "@/lib/teams";
 import { formatDateTime, formatTime } from "@/lib/time";
@@ -80,6 +79,11 @@ export default async function RachaPage({
   const view = selected ? await getRachaView(selected.id) : null;
   const roster = selected ? await getEventRoster(selected.id) : null;
 
+  const myAttendance = roster
+    ? [...roster.confirmed, ...roster.organizers, ...roster.waitlist].find(
+        (row) => row.userId === user.id,
+      ) ?? null
+    : null;
   const session = view?.session ?? null;
   const teamSize = view?.teamSize ?? settings.defaultTeamSize;
   const courts = view?.courts ?? [];
@@ -95,6 +99,19 @@ export default async function RachaPage({
     view?.canUndo && view.history[0]?.court === selectedCourt?.number,
   );
   const sessionHours = view?.sessionAgeHours ?? 0;
+  const teamById = new Map((view?.teams ?? []).map((team) => [team.id, team]));
+  const queueGroups = chunkQueue(view?.queue ?? [], teamSize).map((players, index) => {
+    const blockIds = new Set(
+      players
+        .map((player) => player.queueTeamId)
+        .filter((value): value is string => Boolean(value)),
+    );
+    const teamId =
+      blockIds.size === 1 && players.every((player) => player.queueTeamId === [...blockIds][0])
+        ? [...blockIds][0]
+        : null;
+    return { key: `group-${index}`, teamId, players };
+  });
   const onCourtIds = new Set(
     game ? [...game.teamAPlayers, ...game.teamBPlayers].map((player) => player.userId) : [],
   );
@@ -279,19 +296,6 @@ export default async function RachaPage({
                   </div>
                   {isAdmin ? (
                     <div className="ml-auto flex flex-wrap gap-1.5">
-                      <ActionButton
-                        action={setQueueModeAction}
-                        fields={{
-                          drawId: session.id,
-                          mode: session.queueMode === "KEEP_TEAM" ? "MIX" : "KEEP_TEAM",
-                        }}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        {session.queueMode === "KEEP_TEAM"
-                          ? "Fila: manter time"
-                          : "Fila: misturar"}
-                      </ActionButton>
                       <ActionButton
                         action={openCourtAction}
                         fields={{ drawId: session.id }}
@@ -585,61 +589,69 @@ export default async function RachaPage({
                       Ninguém na fila de espera no momento.
                     </div>
                   ) : (
-                    <ol className="grid gap-2 sm:grid-cols-2">
-                      {view.queue.map((player, index) => (
-                        <li
-                          key={player.userId}
-                          className="flex items-center gap-3 rounded-xl border border-white/5 bg-surface-2/40 px-3 py-2 transition hover:bg-surface-2/80 hover:border-white/10"
-                        >
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-xs font-bold text-amber-400">
-                            #{index + 1}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-                            {player.name}
-                          </span>
-                          <span className="shrink-0 rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted">
-                            {player.gamesPlayed} {player.gamesPlayed === 1 ? "jogo" : "jogos"}
-                          </span>
-                          {isAdmin ? (
-                            <div className="flex items-center gap-0.5">
-                              {index > 0 ? (
-                                <ActionButton
-                                  action={moveQueuePlayerAction}
-                                  fields={{ attendanceId: player.attendanceId, direction: "up" }}
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  title="Subir na fila"
-                                >
-                                  <ArrowUp className="h-4 w-4" aria-hidden />
-                                </ActionButton>
-                              ) : null}
-                              {index < view.queue.length - 1 ? (
-                                <ActionButton
-                                  action={moveQueuePlayerAction}
-                                  fields={{ attendanceId: player.attendanceId, direction: "down" }}
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  title="Descer na fila"
-                                >
-                                  <ArrowDown className="h-4 w-4" aria-hidden />
-                                </ActionButton>
-                              ) : null}
-                              <ActionButton
-                                action={leaveRachaAction}
-                                fields={{ attendanceId: player.attendanceId }}
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-muted hover:bg-rose-500/10 hover:text-rose-400"
-                                confirmMessage={`Remover ${player.name} da fila?`}
-                                title="Remover da fila"
-                              >
-                                <LogOut className="h-4 w-4" aria-hidden />
-                              </ActionButton>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {queueGroups.map((group, groupIndex) => {
+                        const team = group.teamId ? teamById.get(group.teamId) : null;
+                        const complete = group.players.length >= teamSize;
+                        return (
+                          <div key={group.key} className="rounded-xl border border-white/5 bg-surface-2/30 p-2">
+                            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
+                                {groupIndex + 1}º time reserva
+                              </span>
+                              {team ? (
+                                <TeamPill name={team.name} color={team.color} />
+                              ) : (
+                                <Badge tone="neutral">Avulsos</Badge>
+                              )}
+                              {!complete ? <Badge tone="warning">Incompleto</Badge> : null}
                             </div>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ol>
+                            <ul className="space-y-1">
+                              {group.players.map((player) => {
+                                const index = view.queue.findIndex((item) => item.userId === player.userId);
+                                return (
+                                  <li key={player.userId} className="flex items-center gap-2 rounded-lg px-1.5 py-1">
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-[10px] font-bold text-amber-400">
+                                      #{index + 1}
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                                      {player.name}
+                                    </span>
+                                    <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted">
+                                      {player.gamesPlayed}j
+                                    </span>
+                                    {isAdmin ? (
+                                      <div className="flex items-center gap-0.5">
+                                        <QueueSwapDialog
+                                          attendanceId={player.attendanceId}
+                                          playerName={player.name}
+                                          players={view.queue.map((item, position) => ({
+                                            attendanceId: item.attendanceId,
+                                            name: item.name,
+                                            position: position + 1,
+                                          }))}
+                                        />
+                                        <ActionButton
+                                          action={leaveRachaAction}
+                                          fields={{ attendanceId: player.attendanceId }}
+                                          variant="ghost"
+                                          size="icon-sm"
+                                          className="text-muted hover:bg-rose-500/10 hover:text-rose-400"
+                                          confirmMessage={`Remover ${player.name} da fila?`}
+                                          title="Remover da fila"
+                                        >
+                                          <LogOut className="h-4 w-4" aria-hidden />
+                                        </ActionButton>
+                                      </div>
+                                    ) : null}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </CardBody>
               </Card>
@@ -653,6 +665,14 @@ export default async function RachaPage({
                   <Badge>{roster.confirmed.length} confirmados</Badge>
                 </CardHeader>
                 <CardBody className="space-y-2 pt-2">
+                  {isAdmin ? (
+                    <OrganizerToggle
+                      eventId={selected.id}
+                      attendanceId={myAttendance?.attendanceId}
+                      isOrganizer={Boolean(myAttendance?.isOrganizer)}
+                      isAdmin
+                    />
+                  ) : null}
                   <ul className="divide-y divide-line/60">
                     {roster.confirmed.map((player) => (
                       <li key={player.attendanceId} className="flex items-center gap-2 py-2">

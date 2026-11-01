@@ -3,12 +3,19 @@ import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/forms/register-form";
 import { Alert } from "@/components/ui/alert";
 import { getSessionUser } from "@/lib/session";
+import { safeNextPath } from "@/lib/utils";
 
 export const metadata = { title: "Criar conta" };
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await getSessionUser();
-  if (user) redirect("/inicio");
+  const params = await searchParams;
+  const next = typeof params.next === "string" ? params.next : undefined;
+  if (user) redirect(safeNextPath(next));
 
   return (
     <div className="card p-5 sm:p-7">
@@ -26,12 +33,12 @@ export default async function RegisterPage() {
       </Alert>
 
       <div className="mt-5">
-        <RegisterForm />
+        <RegisterForm next={next} />
       </div>
 
       <div className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
         Já tem conta?{" "}
-        <Link href="/entrar" className="font-semibold text-[#7fa2ff] hover:text-white">
+        <Link href={`/entrar${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-[#7fa2ff] hover:text-white">
           Entrar
         </Link>
       </div>

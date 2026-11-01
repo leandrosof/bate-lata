@@ -50,12 +50,20 @@ export async function createEventAction(
     const currentSettings = await getSettings();
     const startsAt = parseLocalDateTime(parsed.data.startsAt, currentSettings.timezone);
     if (!startsAt) throw new AppError("Data ou horário inválidos.");
+    const endsAt = parsed.data.endsAt
+      ? parseLocalDateTime(parsed.data.endsAt, currentSettings.timezone)
+      : new Date(startsAt.getTime() + 2 * 60 * 60 * 1000);
+    if (!endsAt || endsAt <= startsAt) {
+      throw new AppError("O horário de término deve ser depois do início.");
+    }
 
     const [created] = await db
       .insert(events)
       .values({
         title: parsed.data.title.trim(),
         startsAt,
+        endsAt,
+        publicToken: randomBytes(6).toString("hex"),
         venueName: parsed.data.venueName.trim(),
         address: parsed.data.address?.trim() || null,
         maxPlayers: parsed.data.maxPlayers,
@@ -99,12 +107,19 @@ export async function updateEventAction(
     const currentSettings = await getSettings();
     const startsAt = parseLocalDateTime(parsed.data.startsAt, currentSettings.timezone);
     if (!startsAt) throw new AppError("Data ou horário inválidos.");
+    const endsAt = parsed.data.endsAt
+      ? parseLocalDateTime(parsed.data.endsAt, currentSettings.timezone)
+      : new Date(startsAt.getTime() + 2 * 60 * 60 * 1000);
+    if (!endsAt || endsAt <= startsAt) {
+      throw new AppError("O horário de término deve ser depois do início.");
+    }
 
     const updated = await db
       .update(events)
       .set({
         title: parsed.data.title.trim(),
         startsAt,
+        endsAt,
         venueName: parsed.data.venueName.trim(),
         address: parsed.data.address?.trim() || null,
         maxPlayers: parsed.data.maxPlayers,
@@ -294,6 +309,9 @@ export async function updateSettingsAction(
         siteName: parsed.data.siteName.trim(),
         tagline: parsed.data.tagline?.trim() || "Organize. Sorteie. Jogue.",
         logoUrl: parsed.data.logoUrl,
+        aboutText: parsed.data.aboutText?.trim() || null,
+        rulesText: parsed.data.rulesText?.trim() || null,
+        contactText: parsed.data.contactText?.trim() || null,
         rankingEnabled: parsed.data.rankingEnabled,
         pointsWin: parsed.data.pointsWin,
         pointsLoss: parsed.data.pointsLoss,

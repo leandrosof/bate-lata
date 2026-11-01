@@ -17,6 +17,8 @@ import { getEventRoster, listOperationalEvents } from "@/db/queries/events";
 import { listAnnouncements } from "@/db/queries/announcements";
 import { listLiveGames } from "@/db/queries/games";
 import { AttendanceControls } from "@/components/features/attendance-controls";
+import { OrganizerToggle } from "@/components/features/organizer-toggle";
+import { ShareEventButton } from "@/components/features/share-event-button";
 import { AutoRefresh } from "@/components/features/auto-refresh";
 import { EventStatusBadge, GameStatusBadge } from "@/components/features/status-badge";
 import { TeamPill } from "@/components/features/team-card";
@@ -214,14 +216,23 @@ export default async function HomePage() {
             ) : null}
 
             <div className="space-y-2">
-              <AttendanceControls
-                eventId={nextEvent.id}
-                status={mine?.status ?? null}
-                waitlistPosition={mine?.waitlistPosition ?? null}
-                isFull={isFull}
-                allowWaitlist={settings.allowWaitlist}
-                isOrganizer={organizers.some((row) => row.userId === user.id)}
-              />
+              {user.role === "ADMIN" ? (
+                <OrganizerToggle
+                  eventId={nextEvent.id}
+                  attendanceId={mine?.attendanceId}
+                  isOrganizer={Boolean(mine?.isOrganizer)}
+                  isAdmin
+                />
+              ) : (
+                <AttendanceControls
+                  eventId={nextEvent.id}
+                  status={mine?.status ?? null}
+                  waitlistPosition={mine?.waitlistPosition ?? null}
+                  isFull={isFull}
+                  allowWaitlist={settings.allowWaitlist}
+                  isOrganizer={organizers.some((row) => row.userId === user.id)}
+                />
+              )}
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted">
                 <Link href={`/presencas?evento=${nextEvent.id}`} className="font-medium text-[#7fa2ff] hover:text-white">
                   Ver lista completa
@@ -229,6 +240,9 @@ export default async function HomePage() {
                 <Link href={`/racha?evento=${nextEvent.id}`} className="font-medium text-[#7fa2ff] hover:text-white">
                   Ir para o racha
                 </Link>
+                {nextEvent.publicToken ? (
+                  <ShareEventButton token={nextEvent.publicToken} title={nextEvent.title} />
+                ) : null}
                 {user.role === "ADMIN" ? (
                   <Link href="/admin/eventos" className="inline-flex items-center gap-1 font-medium text-muted hover:text-white">
                     <PenLine className="h-3 w-3" aria-hidden />

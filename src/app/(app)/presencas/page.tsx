@@ -19,6 +19,7 @@ import {
   toggleOrganizerAction,
 } from "@/actions/attendance";
 import { AttendanceControls } from "@/components/features/attendance-controls";
+import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { EventPicker } from "@/components/features/event-picker";
 import { EventStatusBadge } from "@/components/features/status-badge";
 import { Avatar } from "@/components/ui/avatar";
@@ -141,14 +142,23 @@ export default async function AttendancePage({
                 <Badge tone="neutral">{roster.pending.length} sem resposta</Badge>
               </div>
 
-              <AttendanceControls
-                eventId={selected.id}
-                status={mine?.status ?? null}
-                waitlistPosition={mine?.waitlistPosition ?? null}
-                isFull={isFull}
-                allowWaitlist={settings.allowWaitlist}
-                isOrganizer={Boolean(mine?.isOrganizer)}
-              />
+              {isAdmin ? (
+                <OrganizerToggle
+                  eventId={selected.id}
+                  attendanceId={mine?.attendanceId}
+                  isOrganizer={Boolean(mine?.isOrganizer)}
+                  isAdmin
+                />
+              ) : (
+                <AttendanceControls
+                  eventId={selected.id}
+                  status={mine?.status ?? null}
+                  waitlistPosition={mine?.waitlistPosition ?? null}
+                  isFull={isFull}
+                  allowWaitlist={settings.allowWaitlist}
+                  isOrganizer={Boolean(mine?.isOrganizer)}
+                />
+              )}
             </CardBody>
           </Card>
 

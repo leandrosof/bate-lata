@@ -5,7 +5,8 @@ import { ActionForm } from "@/components/ui/action-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
-import { Input, Label, Select, Switch } from "@/components/ui/input";
+import { Input, Label, Select, Switch, Textarea } from "@/components/ui/input";
+import { LogoUpload } from "@/components/features/image-uploads";
 import { getSettings, listSeasons } from "@/lib/settings";
 import { toDateInput } from "@/lib/time";
 import { TEAM_SIZE_OPTIONS } from "@/lib/teams";
@@ -45,8 +46,15 @@ export default async function AdminSettingsPage() {
               </div>
             </div>
 
+            <div className="rounded-xl border border-line/70 p-3">
+              <LogoUpload
+                hasLogo={Boolean(settings.logoData)}
+                version={settings.logoUpdatedAt?.getTime() ?? null}
+              />
+            </div>
+
             <div>
-              <Label htmlFor="logoUrl">URL do logotipo (opcional)</Label>
+              <Label htmlFor="logoUrl">URL externa da logo (opcional)</Label>
               <Input
                 id="logoUrl"
                 name="logoUrl"
@@ -57,6 +65,38 @@ export default async function AdminSettingsPage() {
               <p className="mt-1 text-[11px] text-muted">
                 Deixe vazio para usar o ícone padrão. Recomendado: PNG quadrado com pelo menos 256×256.
               </p>
+            </div>
+
+            <div>
+              <Label htmlFor="aboutText">Sobre o grupo</Label>
+              <Textarea
+                id="aboutText"
+                name="aboutText"
+                defaultValue={settings.aboutText ?? ""}
+                maxLength={2000}
+                placeholder="Quem somos, como nos reunimos, que tipo de vôlei jogamos..."
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="rulesText">Regras do grupo</Label>
+                <Textarea
+                  id="rulesText"
+                  name="rulesText"
+                  defaultValue={settings.rulesText ?? ""}
+                  maxLength={2000}
+                />
+              </div>
+              <div>
+                <Label htmlFor="contactText">Contato/redes</Label>
+                <Textarea
+                  id="contactText"
+                  name="contactText"
+                  defaultValue={settings.contactText ?? ""}
+                  maxLength={500}
+                />
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">

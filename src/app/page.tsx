@@ -14,12 +14,21 @@ import { buttonVariants } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
+import { listUpcomingEvents } from "@/db/queries/events";
+import { listRecentFinishedGames } from "@/db/queries/games";
+import { TeamPill } from "@/components/features/team-card";
+import { formatDateLong, formatTime } from "@/lib/time";
 
 export default async function LandingPage() {
   const user = await getSessionUser();
   if (user) redirect("/inicio");
 
   const settings = await getSettings();
+  const upcoming = (await listUpcomingEvents()).filter((event) => event.publicToken).slice(0, 3);
+  const recent = await listRecentFinishedGames(4);
+  const logoUrl = settings.logoData
+    ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
+    : settings.logoUrl;
 
   const features = [
     {
@@ -68,7 +77,7 @@ export default async function LandingPage() {
           <Brand
             siteName={settings.siteName}
             tagline={settings.tagline}
-            logoUrl={settings.logoUrl || "/logo.png"}
+            logoUrl={logoUrl}
             href="/"
           />
           <div className="flex items-center gap-2">
@@ -142,7 +151,101 @@ export default async function LandingPage() {
               <p className="text-sm text-muted">Resultados e ranking calculados sozinhos</p>
             </div>
           </div>
-        </main>
+          {upcoming.length > 0 ? (
+            <section className="mt-10 space-y-3">
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7fa2ff]">Agenda</p>
+                  <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-white">
+                    Próximas partidas
+                  </h2>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {upcoming.map((event) => (
+                  <Link
+                    key={event.id}
+                    href={`/e/${event.publicToken}`}
+                    className="card overflow-hidden transition hover:border-brand/40"
+                  >
+                    <div className="relative h-24 bg-gradient-to-br from-brand/30 to-[#38bdf8]/10">
+                      {event.coverMime ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`/api/event-cover/${event.id}?v=${event.coverUpdatedAt?.getTime() ?? 0}`}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="space-y-1 p-3">
+                      <p className="font-display text-base font-semibold uppercase tracking-wide text-ink">
+                        {event.title}
+                      </p>
+                      <p className="text-[11px] text-muted">
+                        {formatDateLong(event.startsAt, settings.timezone)} ·{" "}
+                        {formatTime(event.startsAt, settings.timezone)}
+                      </p>
+                      <p className="text-[11px] text-muted">{event.venueName}</p>
+                      <p className="text-[11px] font-semibold text-[#86efac]">
+                        {Math.max(event.maxPlayers - event.confirmedCount, 0)} vaga(s)
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {recent.length > 0 ? (
+            <section className="mt-10 space-y-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7fa2ff]">Histórico</p>
+                <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-white">
+                  Últimos resultados
+                </h2>
+              </div>
+              <div className="space-y-2">
+                {recent.map((game) => (
+                  <div
+                    key={game.id}
+                    className="flex flex-wrap items-center gap-2 rounded-xl border border-line/70 bg-surface-2/40 px-3 py-2 text-sm"
+                  >
+                    <TeamPill name={game.teamAName} color={game.teamAColor} />
+                    <span className="font-display text-lg tabular-nums text-white">
+                      {game.scoreA} × {game.scoreB}
+                    </span>
+                    <TeamPill name={game.teamBName} color={game.teamBColor} />
+                    <span className="ml-auto text-xs text-muted">{game.eventTitle}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section className="mt-10 grid gap-3 rounded-2xl border border-line bg-surface/60 p-5 text-sm leading-relaxed text-muted sm:grid-cols-2">
+            <div>
+              <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-white">
+                Sobre o grupo
+              </h2>
+              <p className="mt-2 whitespace-pre-line">
+                {settings.aboutText?.trim() ||
+                  "Somos um grupo de amigos que se reúne para jogar vôlei de resenha, sem compromisso profissional. O importante é jogar, se divertir e manter o grupo organizado."}
+              </p>
+            </div>
+            <div>
+              <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-white">
+                Regras e contato
+              </h2>
+              <p className="mt-2 whitespace-pre-line">
+                {settings.rulesText?.trim() ||
+                  "Presença confirmada pelo site. Times montados automaticamente, com rodízio justo. Respeito com todos e boa energia na quadra."}
+              </p>
+              {settings.contactText ? (
+                <p className="mt-2 whitespace-pre-line">{settings.contactText}</p>
+              ) : null}
+            </div>
+          </section>        </main>
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-5 text-xs text-muted">
           <p>

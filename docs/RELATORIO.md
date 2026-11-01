@@ -87,7 +87,7 @@ pnpm build       ✔ compilação + TypeScript + geração de páginas
 
 ### E2E (Playwright, Chromium)
 
-Executados em servidor isolado (`:3100`, PostgreSQL `:54321`, banco próprio) com dados de
+Executados em servidor isolado (`:3100`, PostgreSQL `:54365`, banco próprio) com dados de
 demonstração recriados a cada execução. Viewport desktop 1280×720 e um teste mobile 390×844.
 
 1. Login do admin e navegação pelas 10 áreas.
@@ -117,7 +117,7 @@ demonstração recriados a cada execução. Viewport desktop 1280×720 e um test
 
 ### Banco PostgreSQL (local e produção)
 - **Drizzle ORM** com schema único (`pg-core`) e migrações SQL versionadas.
-- **Local**: `embedded-postgres` baixa e executa um PostgreSQL 18 real na porta 54320, com
+- **Local**: `embedded-postgres` baixa e executa um PostgreSQL 18 real na porta 54364, com
   dados em `.data/postgres`. Sem Docker, sem instalação manual, com concorrência real.
 - **Produção**: basta apontar `DATABASE_URL` para o Supabase/Neon/etc. O mesmo schema e as
   mesmas migrações funcionam.

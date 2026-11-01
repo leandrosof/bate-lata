@@ -164,15 +164,18 @@ test("desfazer resultado restaura a partida anterior", async ({ page }) => {
 
 test("administrador cria evento e publica aviso", async ({ page }) => {
   await loginAdmin(page);
-  await page.goto("/admin/eventos");
+  await page.goto("/jogos");
 
-  await page.fill('input[name="title"]', "Jogo E2E");
-  await page.fill('input[name="startsAt"]', "2026-12-12T19:00");
-  await page.fill('input[name="maxPlayers"]', "10");
-  await page.fill('input[name="venueName"]', "Arena E2E");
-  await page.fill('input[name="address"]', "Rua dos Testes, 10");
+  const today = new Date();
+  const dayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  await page.getByTestId(`calendar-day-${dayKey}`).click();
+  await page.locator("#cal-title").fill("Jogo E2E");
+  await page.locator("#cal-max").fill("10");
+  await page.locator("#cal-venue").fill("Arena E2E");
   await page.getByRole("button", { name: "Criar evento" }).click();
   await expect(page.getByText("Evento criado.")).toBeVisible();
+
+  await page.goto("/admin/eventos");
   await expect(page.getByText("Jogo E2E").first()).toBeVisible();
 
   await page.goto("/admin/avisos");
@@ -201,7 +204,10 @@ test("novo jogador se cadastra, confirma presença e não acessa administração
   await expect(page).toHaveURL(/\/inicio$/, { timeout: 20_000 });
 
   await page.goto("/jogos");
-  const eventCard = page.locator("div.card").filter({ hasText: "Jogo E2E" }).first();
+  const eventCard = page
+    .locator("div.card")
+    .filter({ has: page.getByRole("heading", { name: "Jogo E2E", exact: true }) })
+    .first();
   await eventCard.getByRole("button", { name: "Confirmar presença" }).click();
   await expect(eventCard.getByRole("button", { name: "Cancelar presença" })).toBeVisible();
 

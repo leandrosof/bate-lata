@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
+import { getAvatarCropGeometry } from "@/lib/avatar-crop";
 import { getSessionUser } from "@/lib/session";
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -17,12 +18,13 @@ async function renderCropped(original: Buffer, x: number, y: number, zoom: numbe
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
   if (!width || !height) throw new Error("Imagem inválida.");
-  const safeZoom = clamp(Number.isFinite(zoom) ? zoom : 1, 1, 3);
-  const size = Math.min(width, height) / safeZoom;
-  const left = clamp(Math.round(clamp(x, 0, 1) * width - size / 2), 0, width - size);
-  const top = clamp(Math.round(clamp(y, 0, 1) * height - size / 2), 0, height - size);
+  const geometry = getAvatarCropGeometry(width, height, x, y, zoom);
+  const size = Math.max(1, Math.round(geometry.size));
+  const left = clamp(Math.round(geometry.left), 0, width - size);
+  const top = clamp(Math.round(geometry.top), 0, height - size);
+
   return sharp(original)
-    .extract({ left, top, width: Math.round(size), height: Math.round(size) })
+    .extract({ left, top, width: size, height: size })
     .resize(256, 256)
     .webp({ quality: 84 })
     .toBuffer();

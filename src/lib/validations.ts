@@ -71,6 +71,7 @@ const localDateTime = z
 export const eventSchema = z.object({
   title: z.string().trim().min(3, "Informe um título.").max(90, "Título muito longo."),
   startsAt: localDateTime,
+  endsAt: localDateTime.optional(),
   venueName: z.string().trim().min(2, "Informe o local.").max(90, "Local muito longo."),
   address: z.string().trim().max(160, "Endereço muito longo.").optional(),
   maxPlayers: z.coerce
@@ -156,6 +157,11 @@ export const rachaQueueMoveSchema = z.object({
   direction: z.enum(["up", "down"]),
 });
 
+export const rachaQueueSwapSchema = z.object({
+  attendanceId: uuidSchema,
+  targetAttendanceId: uuidSchema,
+});
+
 export const rachaCourtSchema = z.object({
   drawId: uuidSchema,
   court: z.coerce.number().int().min(1).max(20),
@@ -188,6 +194,9 @@ export const announcementSchema = z.object({
 export const announcementIdSchema = z.object({ announcementId: uuidSchema });
 
 export const settingsSchema = z.object({
+  aboutText: z.string().trim().max(2000, "Texto muito longo.").optional(),
+  rulesText: z.string().trim().max(2000, "Texto muito longo.").optional(),
+  contactText: z.string().trim().max(500, "Texto muito longo.").optional(),
   siteName: z.string().trim().min(2, "Informe o nome do site.").max(60, "Nome muito longo."),
   tagline: z.string().trim().max(80, "Slogan muito longo.").optional(),
   logoUrl: z

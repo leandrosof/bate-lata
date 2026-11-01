@@ -60,6 +60,13 @@ export async function getEventById(eventId: string): Promise<EventSummary | null
   return summary;
 }
 
+export async function getEventByPublicToken(token: string): Promise<EventSummary | null> {
+  const rows = await db.select().from(events).where(eq(events.publicToken, token)).limit(1);
+  if (!rows[0]) return null;
+  const [summary] = await attachCounts(rows);
+  return summary;
+}
+
 export async function getNextEvent(reference = new Date()): Promise<EventSummary | null> {
   const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
   const rows = await db
@@ -216,7 +223,7 @@ export async function getEventRoster(eventId: string): Promise<{
       avatarUpdatedAt: users.avatarUpdatedAt,
     })
     .from(users)
-    .where(eq(users.active, true))
+    .where(and(eq(users.active, true), eq(users.role, "PLAYER")))
     .orderBy(asc(users.name));
 
   const pending = activeUsers.filter((user) => !listed.has(user.userId));
@@ -256,6 +263,7 @@ export async function listConfirmedCount(eventId: string): Promise<number> {
 export async function getAttendanceMap(userId: string) {
   const rows = await db
     .select({
+      attendanceId: attendances.id,
       eventId: attendances.eventId,
       status: attendances.status,
       waitlistPosition: attendances.waitlistPosition,

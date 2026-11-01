@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/forms/login-form";
 import { Alert } from "@/components/ui/alert";
 import { getSessionUser } from "@/lib/session";
+import { safeNextPath } from "@/lib/utils";
 
 export const metadata = { title: "Entrar" };
 
@@ -12,10 +13,10 @@ export default async function LoginPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await getSessionUser();
-  if (user) redirect("/inicio");
 
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : undefined;
+  if (user) redirect(safeNextPath(next));
   const changed = params.senha === "alterada";
 
   return (
@@ -40,7 +41,7 @@ export default async function LoginPage({
 
       <div className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
         Ainda não tem conta?{" "}
-        <Link href="/cadastro" className="font-semibold text-[#7fa2ff] hover:text-white">
+        <Link href={`/cadastro${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-[#7fa2ff] hover:text-white">
           Criar conta
         </Link>
       </div>
