@@ -2,20 +2,23 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader2, Trash2 } from "lucide-react";
+import { Camera, Loader2, Move, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { AvatarCropDialog } from "@/components/features/avatar-crop-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export function AvatarUpload({
   userId,
   name,
   version,
+  hasOriginal,
 }: {
   userId: string;
   name: string;
   version: Date | null;
+  hasOriginal?: boolean;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,6 +26,7 @@ export function AvatarUpload({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [cropOpen, setCropOpen] = useState(false);
 
   async function upload(file: File) {
     setError(null);
@@ -97,6 +101,16 @@ export function AvatarUpload({
             {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
             {busy === "upload" ? "Enviando..." : "Trocar foto"}
           </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setCropOpen(true)}
+            disabled={busy !== null || !hasOriginal}
+            title={hasOriginal ? "Reposicionar foto" : "Reenvie a foto para reposicionar"}
+          >
+            <Move className="h-4 w-4" />
+            Reposicionar
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setConfirmRemove(true)} disabled={busy !== null}>
             {busy === "remove" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             Remover
@@ -106,6 +120,14 @@ export function AvatarUpload({
       <p className="text-[11px] text-muted">JPG, PNG, WebP ou AVIF · até 2 MB. A imagem é recortada em 256×256.</p>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {success ? <Alert tone="success">{success}</Alert> : null}
+      <AvatarCropDialog
+        open={cropOpen}
+        onClose={() => setCropOpen(false)}
+        onSaved={() => {
+          setSuccess("Foto reposicionada.");
+          router.refresh();
+        }}
+      />
       <ConfirmDialog
         open={confirmRemove}
         title="Remover foto"

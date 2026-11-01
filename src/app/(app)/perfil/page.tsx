@@ -72,7 +72,12 @@ export default async function ProfilePage() {
                 </Link>
               ) : null}
             </div>
-            <AvatarUpload userId={user.id} name={user.name} version={user.avatarUpdatedAt} />
+            <AvatarUpload
+              userId={user.id}
+              name={user.name}
+              version={user.avatarUpdatedAt}
+              hasOriginal={Boolean(user.avatarOriginalMime)}
+            />
           </CardBody>
         </Card>
 

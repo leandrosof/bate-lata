@@ -25,6 +25,7 @@ export function ActionButton({
   feedbackClassName,
   disabled,
   title,
+  showFeedback,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   fields?: Record<string, string | number | boolean | undefined>;
@@ -38,9 +39,11 @@ export function ActionButton({
   feedbackClassName?: string;
   disabled?: boolean;
   title?: string;
+  showFeedback?: boolean;
   children?: React.ReactNode;
 } & VariantProps<typeof buttonVariants>) {
   const [state, formAction, pending] = useActionState(action, null);
+  const renderFeedback = showFeedback ?? !size?.startsWith("icon");
   const formRef = useRef<HTMLFormElement>(null);
   const bypassConfirm = useRef(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -75,12 +78,12 @@ export function ActionButton({
           {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon}
           {pending ? (pendingLabel ?? "Aguarde...") : children}
         </Button>
-        {state && !state.ok && state.message ? (
+        {renderFeedback && state && !state.ok && state.message ? (
           <p className={cn("mt-1.5 text-xs font-medium text-[#ff9a9a]", feedbackClassName)} role="alert">
             {state.message}
           </p>
         ) : null}
-        {state?.ok && state.message ? (
+        {renderFeedback && state?.ok && state.message ? (
           <p className={cn("mt-1.5 break-words text-xs font-medium text-[#86efac]", feedbackClassName)}>
             {state.message}
           </p>

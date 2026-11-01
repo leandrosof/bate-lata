@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 const badgeVariants = {
-  neutral: "border-line bg-surface-2 text-muted",
-  brand: "border-[rgba(47,107,255,0.35)] bg-[rgba(47,107,255,0.14)] text-[#9db8ff]",
-  success: "border-[rgba(34,197,94,0.35)] bg-[rgba(34,197,94,0.12)] text-[#86efac]",
-  warning: "border-[rgba(245,185,66,0.35)] bg-[rgba(245,185,66,0.12)] text-[#fbd38d]",
-  danger: "border-[rgba(240,82,82,0.35)] bg-[rgba(240,82,82,0.12)] text-[#ff9a9a]",
-  live: "border-[rgba(240,82,82,0.45)] bg-[rgba(240,82,82,0.16)] text-[#ffb4b4]",
+  neutral: "border-white/10 bg-white/[0.04] text-muted",
+  brand: "border-brand/30 bg-brand/10 text-brand font-medium",
+  success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-medium",
+  warning: "border-amber-500/30 bg-amber-500/10 text-amber-400 font-medium",
+  danger: "border-rose-500/30 bg-rose-500/10 text-rose-400 font-medium",
+  live: "border-rose-500/30 bg-rose-500/15 text-rose-400 font-semibold shadow-[0_0_12px_rgba(244,63,94,0.2)]",
 } as const;
 
 export type BadgeTone = keyof typeof badgeVariants;

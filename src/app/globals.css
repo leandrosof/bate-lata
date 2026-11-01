@@ -1,32 +1,32 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #070b14;
-  --color-surface: #0d1526;
-  --color-surface-2: #121c30;
-  --color-surface-3: #16223a;
-  --color-line: rgba(148, 163, 184, 0.16);
-  --color-line-strong: rgba(148, 163, 184, 0.28);
-  --color-brand: #2f6bff;
-  --color-brand-strong: #1d4ed8;
-  --color-brand-soft: rgba(47, 107, 255, 0.14);
+  --color-background: #090d16;
+  --color-surface: #0f172a;
+  --color-surface-2: #162035;
+  --color-surface-3: #1e293b;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+  --color-brand: #3b82f6;
+  --color-brand-strong: #2563eb;
+  --color-brand-soft: rgba(59, 130, 246, 0.14);
   --color-accent: #38bdf8;
   --color-ink: #f8fafc;
-  --color-muted: #93a3bb;
-  --color-danger: #f05252;
-  --color-danger-soft: rgba(240, 82, 82, 0.12);
-  --color-success: #22c55e;
-  --color-success-soft: rgba(34, 197, 94, 0.12);
-  --color-warning: #f5b942;
-  --color-warning-soft: rgba(245, 185, 66, 0.12);
+  --color-muted: #94a3b8;
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.15);
+  --color-success: #10b981;
+  --color-success-soft: rgba(16, 185, 129, 0.15);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.15);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-barlow), var(--font-inter), ui-sans-serif, sans-serif;
 
-  --radius-card: 1.125rem;
+  --radius-card: 1.25rem;
 
-  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-pop: pop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-rise: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop: pop 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
 }
@@ -105,10 +105,11 @@ body {
 
   .card {
     background:
-      linear-gradient(160deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 45%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%),
       var(--color-surface);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-card);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
   }
 
   .glass {

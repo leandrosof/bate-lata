@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import {
@@ -11,6 +11,7 @@ import {
   gamePlayers,
   gameSubstitutions,
   games,
+  rotationCourts,
   users,
 } from "@/db/schema";
 import {
@@ -34,6 +35,7 @@ import {
   gameIdSchema,
   rachaAddPlayerSchema,
   rachaAttendanceSchema,
+  rachaCourtSchema,
   rachaSessionSchema,
   rachaStartSchema,
   rachaSubstitutionSchema,
@@ -45,6 +47,7 @@ type PresentRow = {
   userId: string;
   gamesPlayed: number;
   queuePosition: number | null;
+  queueTeamId: string | null;
   rotationStatus: "IDLE" | "WAITING" | "PLAYING" | "LEFT" | "PAUSED";
 };
 
@@ -53,6 +56,7 @@ function toRachaPlayers(rows: PresentRow[]): RachaPlayer[] {
     userId: row.userId,
     gamesPlayed: row.gamesPlayed,
     queuePosition: row.queuePosition ?? 0,
+    blockId: row.queueTeamId,
   }));
 }
 
@@ -73,6 +77,7 @@ async function loadPresent(tx: Tx, eventId: string): Promise<PresentRow[]> {
       userId: attendances.userId,
       gamesPlayed: attendances.gamesPlayed,
       queuePosition: attendances.queuePosition,
+      queueTeamId: attendances.queueTeamId,
       rotationStatus: attendances.rotationStatus,
     })
     .from(attendances)
@@ -81,6 +86,7 @@ async function loadPresent(tx: Tx, eventId: string): Promise<PresentRow[]> {
       and(
         eq(attendances.eventId, eventId),
         eq(attendances.status, "CONFIRMED"),
+        eq(attendances.isOrganizer, false),
         isNotNull(attendances.checkedInAt),
         ne(attendances.rotationStatus, "LEFT"),
         eq(users.active, true),
@@ -95,12 +101,18 @@ async function applyLineup(
   sideA: string[],
   sideB: string[],
   queue: string[],
+  blocks?: Map<string, string | null>,
 ): Promise<void> {
   const playing = [...sideA, ...sideB];
   for (const userId of playing) {
     await tx
       .update(attendances)
-      .set({ rotationStatus: "PLAYING", queuePosition: null, updatedAt: new Date() })
+      .set({
+        rotationStatus: "PLAYING",
+        queuePosition: null,
+        queueTeamId: null,
+        updatedAt: new Date(),
+      })
       .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, userId)));
   }
   for (let index = 0; index < queue.length; index += 1) {
@@ -109,6 +121,7 @@ async function applyLineup(
       .set({
         rotationStatus: "WAITING",
         queuePosition: index + 1,
+        queueTeamId: blocks?.get(queue[index]) ?? null,
         updatedAt: new Date(),
       })
       .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, queue[index])));
@@ -119,6 +132,8 @@ async function createSession(
   tx: Tx,
   eventId: string,
   teamSize: number,
+  courtCount: number,
+  queueModeValue: "KEEP_TEAM" | "MIX",
   actorId: string,
 ) {
   await tx
@@ -127,30 +142,39 @@ async function createSession(
       checkedInAt: sql`coalesce(${attendances.checkedInAt}, ${attendances.createdAt})`,
       rotationStatus: "WAITING",
       queuePosition: null,
+      queueTeamId: null,
       updatedAt: new Date(),
     })
     .where(
       and(
         eq(attendances.eventId, eventId),
         eq(attendances.status, "CONFIRMED"),
+        eq(attendances.isOrganizer, false),
         ne(attendances.rotationStatus, "LEFT"),
       ),
     );
 
   const present = await loadPresent(tx, eventId);
-  if (present.length < teamSize * 2) {
+  const needed = teamSize * 2 * courtCount;
+  if (present.length < needed) {
     throw new AppError(
-      `Faltam ${teamSize * 2 - present.length} jogador(es) para formar dois times de ${teamSize}.`,
+      `Faltam ${needed - present.length} jogador(es) para abrir ${courtCount} quadra(s) de ${teamSize}.`,
     );
   }
 
   const ordered = present
     .slice()
     .sort((a, b) => a.gamesPlayed - b.gamesPlayed || (a.queuePosition ?? 0) - (b.queuePosition ?? 0));
+
   for (let index = 0; index < ordered.length; index += 1) {
     await tx
       .update(attendances)
-      .set({ queuePosition: index + 1, rotationStatus: "WAITING", updatedAt: new Date() })
+      .set({
+        queuePosition: index + 1,
+        rotationStatus: "WAITING",
+        queueTeamId: null,
+        updatedAt: new Date(),
+      })
       .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, ordered[index].userId)));
   }
 
@@ -159,62 +183,111 @@ async function createSession(
     .values({
       eventId,
       teamSize,
+      courtCount,
+      queueMode: queueModeValue,
       status: "IN_PROGRESS",
       createdById: actorId,
       lockedAt: new Date(),
     })
     .returning();
 
-  const visuals = [teamVisualForIndex(0), teamVisualForIndex(1)];
-  const teams: { id: string }[] = [];
-  for (let index = 0; index < 2; index += 1) {
-    const [team] = await tx
+  const selected = ordered.slice(0, needed);
+  let visualIndex = 0;
+
+  for (let court = 1; court <= courtCount; court += 1) {
+    const offset = (court - 1) * teamSize * 2;
+    const sideA = selected.slice(offset, offset + teamSize).map((row) => row.userId);
+    const sideB = selected.slice(offset + teamSize, offset + teamSize * 2).map((row) => row.userId);
+
+    const visualA = teamVisualForIndex(visualIndex);
+    visualIndex += 1;
+    const visualB = teamVisualForIndex(visualIndex);
+    visualIndex += 1;
+
+    const [teamA] = await tx
       .insert(drawTeams)
       .values({
         drawId: draw.id,
-        name: visuals[index].name,
-        color: visuals[index].color,
-        sortOrder: index,
+        name: visualA.name,
+        color: visualA.color,
+        sortOrder: (court - 1) * 2,
       })
-      .returning();
-    teams.push(team);
-  }
+      .returning({ id: drawTeams.id });
+    const [teamB] = await tx
+      .insert(drawTeams)
+      .values({
+        drawId: draw.id,
+        name: visualB.name,
+        color: visualB.color,
+        sortOrder: (court - 1) * 2 + 1,
+      })
+      .returning({ id: drawTeams.id });
 
-  const players = toRachaPlayers(
-    await loadPresent(tx, eventId).then((rows) =>
-      rows.map((row, index) => ({ ...row, queuePosition: index + 1 })),
-    ),
-  );
-  const [event] = await tx.select().from(events).where(eq(events.id, eventId)).limit(1);
-  const rule = toRule(event?.rotationRule ?? "HYBRID");
-  const plan = planFirstMatch(players, teamSize, rule);
+    const [game] = await tx
+      .insert(games)
+      .values({
+        drawId: draw.id,
+        eventId,
+        teamAId: teamA.id,
+        teamBId: teamB.id,
+        status: "NOT_STARTED",
+        source: "RACHA",
+        court,
+        sequence: court,
+        createdById: actorId,
+      })
+      .returning({ id: games.id });
 
-  if (plan.ok) {
-    await tx.insert(games).values({
-      drawId: draw.id,
-      eventId,
-      teamAId: teams[0].id,
-      teamBId: teams[1].id,
-      status: "NOT_STARTED",
-      source: "RACHA",
-      sequence: 1,
-      createdById: actorId,
-    }).returning({ id: games.id }).then(async ([game]) => {
-      await tx.insert(gamePlayers).values([
-        ...plan.sideA.map((userId) => ({ gameId: game.id, teamId: teams[0].id, userId })),
-        ...plan.sideB.map((userId) => ({ gameId: game.id, teamId: teams[1].id, userId })),
-      ]);
+    await tx.insert(gamePlayers).values([
+      ...sideA.map((userId) => ({ gameId: game.id, teamId: teamA.id, userId })),
+      ...sideB.map((userId) => ({ gameId: game.id, teamId: teamB.id, userId })),
+    ]);
+
+    await tx.insert(rotationCourts).values({
+      sessionId: draw.id,
+      number: court,
+      status: "PLAYING",
+      teamAId: teamA.id,
+      teamBId: teamB.id,
+      playerAIds: sideA,
+      playerBIds: sideB,
+      currentGameId: game.id,
     });
-    await applyLineup(tx, eventId, plan.sideA, plan.sideB, plan.queue);
   }
 
-  return { draw, teams };
+  for (const row of selected) {
+    await tx
+      .update(attendances)
+      .set({
+        rotationStatus: "PLAYING",
+        queuePosition: null,
+        queueTeamId: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, row.userId)));
+  }
+
+  const remaining = ordered.slice(needed);
+  for (let index = 0; index < remaining.length; index += 1) {
+    await tx
+      .update(attendances)
+      .set({
+        rotationStatus: "WAITING",
+        queuePosition: index + 1,
+        queueTeamId: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, remaining[index].userId)));
+  }
+
+  return { draw };
 }
 
-async function mountNextIfNeeded(
+async function mountNextForCourt(
   tx: Tx,
   draw: typeof draws.$inferSelect,
   eventId: string,
+  court: number,
 ): Promise<string | null> {
   const [existing] = await tx
     .select({ id: games.id })
@@ -222,34 +295,42 @@ async function mountNextIfNeeded(
     .where(
       and(
         eq(games.drawId, draw.id),
+        eq(games.court, court),
         sql`${games.status} in ('IN_PROGRESS', 'NOT_STARTED')`,
       ),
     )
     .limit(1);
   if (existing) return existing.id;
 
-  const teams = await tx
+  const [courtRow] = await tx
     .select()
-    .from(drawTeams)
-    .where(eq(drawTeams.drawId, draw.id))
-    .orderBy(asc(drawTeams.sortOrder));
-  if (teams.length < 2) return null;
+    .from(rotationCourts)
+    .where(and(eq(rotationCourts.sessionId, draw.id), eq(rotationCourts.number, court)))
+    .limit(1);
+  if (!courtRow) return null;
 
-  const [event] = await tx.select().from(events).where(eq(events.id, eventId)).limit(1);
-  const rule = toRule(event?.rotationRule ?? "HYBRID");
-  const present = await loadPresent(tx, eventId);
-  const ordered = present
-    .slice()
-    .sort((a, b) => a.gamesPlayed - b.gamesPlayed || (a.queuePosition ?? 0) - (b.queuePosition ?? 0));
-  for (let index = 0; index < ordered.length; index += 1) {
-    await tx
-      .update(attendances)
-      .set({ rotationStatus: "WAITING", queuePosition: index + 1, updatedAt: new Date() })
-      .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, ordered[index].userId)));
-  }
-  const normalized = ordered.map((row, index) => ({ ...row, queuePosition: index + 1 }));
-  const plan = planFirstMatch(toRachaPlayers(normalized), draw.teamSize, rule);
+  const present = (await loadPresent(tx, eventId)).filter(
+    (row) => row.rotationStatus === "WAITING",
+  );
+  const plan = planFirstMatch(toRachaPlayers(present), draw.teamSize, "HYBRID");
   if (!plan.ok) return null;
+
+  const [teamCountRow] = await tx
+    .select({ total: sql<number>`count(*)` })
+    .from(drawTeams)
+    .where(eq(drawTeams.drawId, draw.id));
+  const base = Number(teamCountRow?.total ?? 0);
+
+  const visualA = teamVisualForIndex(base);
+  const visualB = teamVisualForIndex(base + 1);
+  const [teamA] = await tx
+    .insert(drawTeams)
+    .values({ drawId: draw.id, name: visualA.name, color: visualA.color, sortOrder: base })
+    .returning({ id: drawTeams.id });
+  const [teamB] = await tx
+    .insert(drawTeams)
+    .values({ drawId: draw.id, name: visualB.name, color: visualB.color, sortOrder: base + 1 })
+    .returning({ id: drawTeams.id });
 
   const [sequenceRow] = await tx
     .select({ sequence: sql<number>`max(${games.sequence})` })
@@ -262,21 +343,52 @@ async function mountNextIfNeeded(
     .values({
       drawId: draw.id,
       eventId,
-      teamAId: teams[0].id,
-      teamBId: teams[1].id,
+      teamAId: teamA.id,
+      teamBId: teamB.id,
       status: "NOT_STARTED",
       source: "RACHA",
+      court,
       sequence,
       createdById: draw.createdById,
     })
     .returning({ id: games.id });
 
   await tx.insert(gamePlayers).values([
-    ...plan.sideA.map((userId) => ({ gameId: game.id, teamId: teams[0].id, userId })),
-    ...plan.sideB.map((userId) => ({ gameId: game.id, teamId: teams[1].id, userId })),
+    ...plan.sideA.map((userId) => ({ gameId: game.id, teamId: teamA.id, userId })),
+    ...plan.sideB.map((userId) => ({ gameId: game.id, teamId: teamB.id, userId })),
   ]);
+
+  await tx
+    .update(rotationCourts)
+    .set({
+      status: "PLAYING",
+      teamAId: teamA.id,
+      teamBId: teamB.id,
+      playerAIds: plan.sideA,
+      playerBIds: plan.sideB,
+      currentGameId: game.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(rotationCourts.id, courtRow.id));
+
   await applyLineup(tx, eventId, plan.sideA, plan.sideB, plan.queue);
   return game.id;
+}
+
+async function tryMountAnyCourt(
+  tx: Tx,
+  draw: typeof draws.$inferSelect,
+  eventId: string,
+): Promise<void> {
+  const rows = await tx
+    .select({ number: rotationCourts.number })
+    .from(rotationCourts)
+    .where(and(eq(rotationCourts.sessionId, draw.id), eq(rotationCourts.status, "EMPTY")))
+    .orderBy(asc(rotationCourts.number));
+  for (const row of rows) {
+    const mounted = await mountNextForCourt(tx, draw, eventId, row.number);
+    if (mounted) return;
+  }
 }
 
 async function findQueueCandidate(
@@ -329,7 +441,7 @@ export async function startRachaAction(
         .limit(1);
       if (active) throw new AppError("Já existe um racha em andamento neste evento.");
 
-      await createSession(tx, event.id, parsed.data.teamSize, actor.id);
+      await createSession(tx, event.id, parsed.data.teamSize, parsed.data.courtCount, "KEEP_TEAM", actor.id);
     });
 
     await recordAudit({
@@ -412,7 +524,7 @@ export async function addToRachaAction(
         .where(and(eq(draws.eventId, event.id), eq(draws.status, "IN_PROGRESS")))
         .orderBy(desc(draws.createdAt))
         .limit(1);
-      if (draw) await mountNextIfNeeded(tx, draw, event.id);
+      if (draw) await tryMountAnyCourt(tx, draw, event.id);
     });
 
     await recordAudit({
@@ -479,7 +591,7 @@ export async function checkInRachaAction(
         .where(and(eq(draws.eventId, row.eventId), eq(draws.status, "IN_PROGRESS")))
         .orderBy(desc(draws.createdAt))
         .limit(1);
-      if (draw) await mountNextIfNeeded(tx, draw, row.eventId);
+      if (draw) await tryMountAnyCourt(tx, draw, row.eventId);
     });
 
     revalidatePath("/", "layout");
@@ -522,7 +634,7 @@ export async function startMatchAction(
       const [live] = await tx
         .select({ id: games.id })
         .from(games)
-        .where(and(eq(games.drawId, game.drawId), eq(games.status, "IN_PROGRESS")))
+        .where(and(eq(games.drawId, game.drawId), eq(games.court, game.court), eq(games.status, "IN_PROGRESS")))
         .limit(1);
       if (live) throw new AppError("Já existe uma partida em andamento.");
 
@@ -616,6 +728,7 @@ export async function finalizeMatchAction(
           userId: attendances.userId,
           rotationStatus: attendances.rotationStatus,
           queuePosition: attendances.queuePosition,
+          queueTeamId: attendances.queueTeamId,
           gamesPlayed: attendances.gamesPlayed,
           lastPlayedAt: attendances.lastPlayedAt,
         })
@@ -645,18 +758,35 @@ export async function finalizeMatchAction(
 
       const [event] = await tx.select().from(events).where(eq(events.id, game.eventId)).limit(1);
       const rule = toRule(event?.rotationRule ?? "HYBRID");
+      const keepTeam = draw.queueMode === "KEEP_TEAM";
       const present = await loadPresent(tx, game.eventId);
+      const planPlayers = present.filter(
+        (row) =>
+          row.rotationStatus === "WAITING" ||
+          winnerIds.includes(row.userId) ||
+          loserIds.includes(row.userId),
+      );
+      const playersForPlan = toRachaPlayers(planPlayers).map((player) =>
+        loserIds.includes(player.userId)
+          ? { ...player, blockId: keepTeam ? otherTeamId : null }
+          : player,
+      );
       const plan = planNextMatch({
         rule,
         teamSize: draw.teamSize,
-        players: toRachaPlayers(present),
+        players: playersForPlan,
         winnerIds,
         loserIds,
       });
 
       if (!plan.ok) {
         const ordered = present
-          .slice()
+          .filter(
+            (row) =>
+              row.rotationStatus === "WAITING" ||
+              winnerIds.includes(row.userId) ||
+              loserIds.includes(row.userId),
+          )
           .sort(
             (a, b) =>
               a.gamesPlayed - b.gamesPlayed ||
@@ -668,6 +798,7 @@ export async function finalizeMatchAction(
             .set({
               rotationStatus: "WAITING",
               queuePosition: index + 1,
+              queueTeamId: null,
               updatedAt: new Date(),
             })
             .where(
@@ -677,6 +808,23 @@ export async function finalizeMatchAction(
               ),
             );
         }
+        await tx
+          .update(rotationCourts)
+          .set({
+            status: "EMPTY",
+            teamAId: null,
+            teamBId: null,
+            playerAIds: null,
+            playerBIds: null,
+            currentGameId: null,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(rotationCourts.sessionId, draw.id),
+              eq(rotationCourts.number, game.court),
+            ),
+          );
         await tx
           .update(games)
           .set({ undoState: { attendances: snapshot, nextGameId: null } })
@@ -690,15 +838,55 @@ export async function finalizeMatchAction(
         .where(eq(games.drawId, draw.id));
       const sequence = Number(sequenceRow?.sequence ?? 0) + 1;
 
+      let opponentTeamId: string | null = null;
+      if (plan.winnerStayed) {
+        const opponentRows = await tx
+          .select({ queueTeamId: attendances.queueTeamId })
+          .from(attendances)
+          .where(and(eq(attendances.eventId, game.eventId), inArray(attendances.userId, plan.sideB)));
+        const blocks = new Set(
+          opponentRows
+            .map((row) => row.queueTeamId)
+            .filter((value): value is string => Boolean(value)),
+        );
+        if (
+          blocks.size === 1 &&
+          opponentRows.every((row) => row.queueTeamId === [...blocks][0])
+        ) {
+          opponentTeamId = [...blocks][0];
+        } else {
+          const [countRow] = await tx
+            .select({ total: sql<number>`count(*)` })
+            .from(drawTeams)
+            .where(eq(drawTeams.drawId, draw.id));
+          const base = Number(countRow?.total ?? 0);
+          const visual = teamVisualForIndex(base);
+          const [team] = await tx
+            .insert(drawTeams)
+            .values({
+              drawId: draw.id,
+              name: visual.name,
+              color: visual.color,
+              sortOrder: base,
+            })
+            .returning({ id: drawTeams.id });
+          opponentTeamId = team.id;
+        }
+      }
+
+      const nextTeamAId = plan.winnerStayed ? winnerTeamId : game.teamAId;
+      const nextTeamBId = plan.winnerStayed ? opponentTeamId! : game.teamBId;
+
       const [next] = await tx
         .insert(games)
         .values({
           drawId: draw.id,
           eventId: game.eventId,
-          teamAId: plan.winnerStayed ? winnerTeamId : game.teamAId,
-          teamBId: plan.winnerStayed ? otherTeamId : game.teamBId,
+          teamAId: nextTeamAId,
+          teamBId: nextTeamBId,
           status: "NOT_STARTED",
           source: "RACHA",
+          court: game.court,
           sequence,
           createdById: actor.id,
         })
@@ -707,17 +895,48 @@ export async function finalizeMatchAction(
       await tx.insert(gamePlayers).values([
         ...plan.sideA.map((userId) => ({
           gameId: next.id,
-          teamId: plan.winnerStayed ? winnerTeamId : game.teamAId,
+          teamId: nextTeamAId,
           userId,
         })),
         ...plan.sideB.map((userId) => ({
           gameId: next.id,
-          teamId: plan.winnerStayed ? otherTeamId : game.teamBId,
+          teamId: nextTeamBId,
           userId,
         })),
       ]);
 
-      await applyLineup(tx, game.eventId, plan.sideA, plan.sideB, plan.queue);
+      const blocks = new Map<string, string | null>();
+      if (plan.queue.length > 0) {
+        const queueRows = await tx
+          .select({ userId: attendances.userId, queueTeamId: attendances.queueTeamId })
+          .from(attendances)
+          .where(
+            and(eq(attendances.eventId, game.eventId), inArray(attendances.userId, plan.queue)),
+          );
+        for (const row of queueRows) blocks.set(row.userId, row.queueTeamId ?? null);
+      }
+      for (const loserId of loserIds) {
+        if (plan.queue.includes(loserId)) {
+          blocks.set(loserId, keepTeam ? otherTeamId : null);
+        }
+      }
+
+      await tx
+        .update(rotationCourts)
+        .set({
+          status: "PLAYING",
+          teamAId: nextTeamAId,
+          teamBId: nextTeamBId,
+          playerAIds: plan.sideA,
+          playerBIds: plan.sideB,
+          currentGameId: next.id,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(eq(rotationCourts.sessionId, draw.id), eq(rotationCourts.number, game.court)),
+        );
+
+      await applyLineup(tx, game.eventId, plan.sideA, plan.sideB, plan.queue, blocks);
       await tx
         .update(games)
         .set({ undoState: { attendances: snapshot, nextGameId: next.id } })
@@ -774,6 +993,7 @@ export async function undoRachaAction(
               userId: string;
               rotationStatus: "IDLE" | "WAITING" | "PLAYING" | "LEFT" | "PAUSED";
               queuePosition: number | null;
+              queueTeamId: string | null;
               gamesPlayed: number;
               lastPlayedAt: Date | string | null;
             }[];
@@ -813,6 +1033,7 @@ export async function undoRachaAction(
           .set({
             rotationStatus: row.rotationStatus,
             queuePosition: row.queuePosition,
+            queueTeamId: row.queueTeamId,
             gamesPlayed: row.gamesPlayed,
             lastPlayedAt: row.lastPlayedAt ? new Date(row.lastPlayedAt) : null,
             updatedAt: new Date(),
@@ -946,7 +1167,12 @@ export async function substitutePlayerAction(
         .where(and(eq(attendances.eventId, game.eventId), eq(attendances.userId, outRow.userId)));
       await tx
         .update(attendances)
-        .set({ rotationStatus: "PLAYING", queuePosition: null, updatedAt: new Date() })
+        .set({
+        rotationStatus: "PLAYING",
+        queuePosition: null,
+        queueTeamId: null,
+        updatedAt: new Date(),
+      })
         .where(
           and(eq(attendances.eventId, game.eventId), eq(attendances.userId, candidate.userId)),
         );
@@ -1066,7 +1292,12 @@ export async function leaveRachaAction(
             .where(eq(gamePlayers.id, playerRow.id));
           await tx
             .update(attendances)
-            .set({ rotationStatus: "PLAYING", queuePosition: null, updatedAt: new Date() })
+            .set({
+        rotationStatus: "PLAYING",
+        queuePosition: null,
+        queueTeamId: null,
+        updatedAt: new Date(),
+      })
             .where(
               and(eq(attendances.eventId, row.eventId), eq(attendances.userId, candidate.userId)),
             );
@@ -1083,7 +1314,7 @@ export async function leaveRachaAction(
 
         if (game.status === "NOT_STARTED") {
           await tx.delete(games).where(eq(games.id, game.id));
-          if (draw) await mountNextIfNeeded(tx, draw, row.eventId);
+          if (draw) await tryMountAnyCourt(tx, draw, row.eventId);
         }
         return "Jogador removido. A partida fica pausada até entrar um substituto.";
       }
@@ -1162,7 +1393,7 @@ export async function restartRachaAction(
         .delete(games)
         .where(and(eq(games.drawId, current.id), eq(games.status, "NOT_STARTED")));
 
-      await createSession(tx, current.eventId, current.teamSize, actor.id);
+      await createSession(tx, current.eventId, current.teamSize, current.courtCount, current.queueMode, actor.id);
     });
 
     await recordAudit({
@@ -1224,6 +1455,159 @@ export async function endRachaAction(
 
     revalidatePath("/", "layout");
     return success("Racha encerrado.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function openCourtAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = rachaSessionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    await db.transaction(async (tx) => {
+      const [draw] = await tx
+        .select()
+        .from(draws)
+        .where(eq(draws.id, parsed.data.drawId))
+        .for("update")
+        .limit(1);
+      if (!draw) throw new AppError("Sessão não encontrada.");
+
+      const courts = await tx
+        .select()
+        .from(rotationCourts)
+        .where(eq(rotationCourts.sessionId, draw.id))
+        .orderBy(asc(rotationCourts.number));
+      if (courts.length >= 20) throw new AppError("Limite de 20 quadras atingido.");
+
+      const present = await loadPresent(tx, draw.eventId);
+      const available = present.filter((row) => row.rotationStatus === "WAITING").length;
+      if (available < draw.teamSize * 2) {
+        throw new AppError(
+          `Faltam ${draw.teamSize * 2 - available} jogador(es) na fila para abrir outra quadra.`,
+        );
+      }
+
+      const number = Math.max(0, ...courts.map((row) => row.number)) + 1;
+      await tx.insert(rotationCourts).values({
+        sessionId: draw.id,
+        number,
+        status: "EMPTY",
+      });
+      await tx
+        .update(draws)
+        .set({ courtCount: courts.length + 1 })
+        .where(eq(draws.id, draw.id));
+
+      await mountNextForCourt(tx, draw, draw.eventId, number);
+    });
+
+    revalidatePath("/", "layout");
+    return success("Quadra aberta.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function closeCourtAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = rachaCourtSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    await db.transaction(async (tx) => {
+      const [draw] = await tx
+        .select()
+        .from(draws)
+        .where(eq(draws.id, parsed.data.drawId))
+        .for("update")
+        .limit(1);
+      if (!draw) throw new AppError("Sessão não encontrada.");
+
+      const [court] = await tx
+        .select()
+        .from(rotationCourts)
+        .where(
+          and(
+            eq(rotationCourts.sessionId, draw.id),
+            eq(rotationCourts.number, parsed.data.court),
+          ),
+        )
+        .limit(1);
+      if (!court) throw new AppError("Quadra não encontrada.");
+
+      const [current] = await tx
+        .select()
+        .from(games)
+        .where(
+          and(
+            eq(games.drawId, draw.id),
+            eq(games.court, court.number),
+            sql`${games.status} in ('IN_PROGRESS', 'NOT_STARTED')`,
+          ),
+        )
+        .orderBy(desc(games.sequence))
+        .limit(1);
+
+      if (current) {
+        const [free] = await tx
+          .select()
+          .from(rotationCourts)
+          .where(
+            and(
+              eq(rotationCourts.sessionId, draw.id),
+              eq(rotationCourts.status, "EMPTY"),
+              ne(rotationCourts.number, court.number),
+            ),
+          )
+          .orderBy(asc(rotationCourts.number))
+          .limit(1);
+        if (!free) throw new AppError("Não há outra quadra livre para receber a partida.");
+
+        await tx
+          .update(games)
+          .set({ court: free.number, updatedAt: new Date() })
+          .where(eq(games.id, current.id));
+
+        await tx
+          .update(rotationCourts)
+          .set({
+            status: court.status,
+            teamAId: court.teamAId,
+            teamBId: court.teamBId,
+            playerAIds: court.playerAIds,
+            playerBIds: court.playerBIds,
+            currentGameId: court.currentGameId,
+            updatedAt: new Date(),
+          })
+          .where(eq(rotationCourts.id, free.id));
+      }
+
+      await tx.delete(rotationCourts).where(eq(rotationCourts.id, court.id));
+      const remaining = await tx
+        .select({ number: rotationCourts.number })
+        .from(rotationCourts)
+        .where(eq(rotationCourts.sessionId, draw.id));
+      await tx
+        .update(draws)
+        .set({ courtCount: remaining.length })
+        .where(eq(draws.id, draw.id));
+    });
+
+    revalidatePath("/", "layout");
+    return success("Quadra fechada.");
   } catch (error) {
     return actionFailure(error);
   }

@@ -48,10 +48,12 @@ export default async function HomePage() {
   const activeHours = activeEvent?.activeHours ?? 0;
 
   const confirmed = roster?.confirmed ?? [];
+  const organizers = roster?.organizers ?? [];
   const waitlist = roster?.waitlist ?? [];
   const pending = roster?.pending ?? [];
   const mine =
     confirmed.find((row) => row.userId === user.id) ??
+    organizers.find((row) => row.userId === user.id) ??
     waitlist.find((row) => row.userId === user.id) ??
     null;
 
@@ -218,6 +220,7 @@ export default async function HomePage() {
                 waitlistPosition={mine?.waitlistPosition ?? null}
                 isFull={isFull}
                 allowWaitlist={settings.allowWaitlist}
+                isOrganizer={organizers.some((row) => row.userId === user.id)}
               />
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted">
                 <Link href={`/presencas?evento=${nextEvent.id}`} className="font-medium text-[#7fa2ff] hover:text-white">

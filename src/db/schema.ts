@@ -28,6 +28,8 @@ export const rotationStatus = pgEnum("rotation_status", [
 ]);
 export const gamePlayerRole = pgEnum("game_player_role", ["STARTER", "SUB"]);
 export const gameSource = pgEnum("game_source", ["MANUAL", "TEAM_ROTATION", "RACHA"]);
+export const queueMode = pgEnum("queue_mode", ["KEEP_TEAM", "MIX"]);
+export const courtStatus = pgEnum("court_status", ["EMPTY", "WAITING", "PLAYING"]);
 
 export const users = pgTable(
   "users",
@@ -40,6 +42,8 @@ export const users = pgTable(
     nickname: text("nickname"),
     avatarMime: text("avatar_mime"),
     avatarData: bytea("avatar_data"),
+    avatarOriginalData: bytea("avatar_original_data"),
+    avatarOriginalMime: text("avatar_original_mime"),
     avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -134,6 +138,8 @@ export const attendances = pgTable(
     gamesPlayed: integer("games_played").notNull().default(0),
     lastPlayedAt: timestamp("last_played_at", { withTimezone: true }),
     leftAt: timestamp("left_at", { withTimezone: true }),
+    isOrganizer: boolean("is_organizer").notNull().default(false),
+    queueTeamId: uuid("queue_team_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -166,6 +172,8 @@ export const draws = pgTable(
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
     teamSize: integer("team_size").notNull(),
+    courtCount: integer("court_count").notNull().default(1),
+    queueMode: queueMode("queue_mode").notNull().default("KEEP_TEAM"),
     status: drawStatus("status").notNull().default("DRAFT"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -207,6 +215,7 @@ export const games = pgTable(
       .references(() => drawTeams.id, { onDelete: "cascade" }),
     status: gameStatus("status").notNull().default("NOT_STARTED"),
     source: gameSource("source").notNull().default("MANUAL"),
+    court: integer("court").notNull().default(1),
     sequence: integer("sequence").notNull().default(1),
     scoreA: integer("score_a").notNull().default(0),
     scoreB: integer("score_b").notNull().default(0),
@@ -222,6 +231,29 @@ export const games = pgTable(
     index("games_event_idx").on(table.eventId),
     index("games_draw_idx").on(table.drawId),
     index("games_status_idx").on(table.status),
+  ],
+);
+
+export const rotationCourts = pgTable(
+  "rotation_courts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => draws.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    status: courtStatus("status").notNull().default("EMPTY"),
+    teamAId: uuid("team_a_id").references(() => drawTeams.id, { onDelete: "set null" }),
+    teamBId: uuid("team_b_id").references(() => drawTeams.id, { onDelete: "set null" }),
+    playerAIds: jsonb("player_a_ids"),
+    playerBIds: jsonb("player_b_ids"),
+    currentGameId: uuid("current_game_id").references(() => games.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("rotation_courts_session_number_unique").on(table.sessionId, table.number),
+    index("rotation_courts_session_idx").on(table.sessionId, table.status),
   ],
 );
 
@@ -242,6 +274,8 @@ export const gamePlayers = pgTable(
     replacedUserId: uuid("replaced_user_id").references(() => users.id, { onDelete: "set null" }),
     enteredAt: timestamp("entered_at", { withTimezone: true }).notNull().defaultNow(),
     leftAt: timestamp("left_at", { withTimezone: true }),
+    isOrganizer: boolean("is_organizer").notNull().default(false),
+    queueTeamId: uuid("queue_team_id"),
   },
   (table) => [
     uniqueIndex("game_players_game_user_unique").on(table.gameId, table.userId),
@@ -359,6 +393,7 @@ export type Attendance = typeof attendances.$inferSelect;
 export type Draw = typeof draws.$inferSelect;
 export type DrawTeam = typeof drawTeams.$inferSelect;
 export type Game = typeof games.$inferSelect;
+export type RotationCourt = typeof rotationCourts.$inferSelect;
 export type GamePlayer = typeof gamePlayers.$inferSelect;
 export type GameSubstitution = typeof gameSubstitutions.$inferSelect;
 export type Settings = typeof settings.$inferSelect;

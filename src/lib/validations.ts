@@ -135,6 +135,7 @@ export const gameIdSchema = z.object({ gameId: uuidSchema });
 
 export const rachaStartSchema = z.object({
   eventId: uuidSchema,
+  courtCount: z.coerce.number().int().min(1).max(20).optional().default(1),
   teamSize: z.coerce
     .number()
     .int()
@@ -144,6 +145,11 @@ export const rachaStartSchema = z.object({
 export const rachaSessionSchema = z.object({ drawId: uuidSchema });
 
 export const rachaAttendanceSchema = z.object({ attendanceId: uuidSchema });
+
+export const rachaCourtSchema = z.object({
+  drawId: uuidSchema,
+  court: z.coerce.number().int().min(1).max(20),
+});
 
 export const rachaAddPlayerSchema = z.object({
   eventId: uuidSchema,

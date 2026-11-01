@@ -24,38 +24,54 @@ export function TeamCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-surface/80",
-        highlight ? "border-white/25 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]" : "border-line",
+        "relative overflow-hidden rounded-2xl border transition-all duration-300",
+        highlight
+          ? "border-white/20 bg-surface-2/90 shadow-[0_12px_28px_-8px_rgba(0,0,0,0.6)]"
+          : "border-line bg-surface/60",
         className,
       )}
     >
-      <div className="h-1 w-full" style={{ backgroundColor: visual.hex }} />
+      {/* Top subtle glow bar */}
+      <div
+        className="h-1.5 w-full shadow-[0_2px_10px]"
+        style={{
+          backgroundColor: visual.hex,
+          color: visual.hex,
+        }}
+      />
       <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: visual.hex }} />
-          <p className="truncate font-display text-lg font-semibold uppercase tracking-wide text-ink">
+          <span
+            className="h-3 w-3 shrink-0 rounded-full shadow-[0_0_8px]"
+            style={{ backgroundColor: visual.hex, color: visual.hex }}
+          />
+          <p className="truncate font-display text-base font-bold uppercase tracking-wider text-ink">
             {team.name}
           </p>
         </div>
         <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+          className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
           style={{ backgroundColor: visual.soft, color: visual.hex }}
         >
           {team.players.length}
           {teamSize ? `/${teamSize}` : ""}
         </span>
       </div>
-      <ol className="space-y-1 px-2 py-2.5">
+      <ol className="space-y-1.5 px-3 py-3">
         {team.players.map((player, index) => (
           <li
             key={player.userId}
-            className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm text-ink/90 transition hover:bg-white/[0.04]"
+            className="flex items-center gap-2.5 rounded-xl bg-white/[0.02] px-2.5 py-1.5 text-sm font-medium text-ink transition hover:bg-white/[0.06]"
           >
-            <span className="w-4 text-right text-[10px] font-bold text-muted/70">{index + 1}</span>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/5 text-[11px] font-bold text-muted">
+              {index + 1}
+            </span>
             <span className="truncate">{player.name}</span>
           </li>
         ))}
-        {team.players.length === 0 ? <li className="px-2 py-1 text-xs text-muted">Sem jogadores</li> : null}
+        {team.players.length === 0 ? (
+          <li className="px-2 py-3 text-center text-xs text-muted">Sem jogadores escalados</li>
+        ) : null}
       </ol>
     </div>
   );

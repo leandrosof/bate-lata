@@ -8,6 +8,7 @@ export function AttendanceControls({
   waitlistPosition,
   isFull,
   allowWaitlist,
+  isOrganizer,
   size = "lg",
   block = true,
 }: {
@@ -16,9 +17,18 @@ export function AttendanceControls({
   waitlistPosition?: number | null;
   isFull: boolean;
   allowWaitlist: boolean;
+  isOrganizer?: boolean;
   size?: "sm" | "md" | "lg";
   block?: boolean;
 }) {
+  if (isOrganizer) {
+    return (
+      <p className="rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-center text-xs text-muted">
+        Você está apenas organizando este encontro.
+      </p>
+    );
+  }
+
   if (status === "CONFIRMED") {
     return (
       <ActionButton

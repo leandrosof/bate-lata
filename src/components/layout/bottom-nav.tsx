@@ -35,10 +35,10 @@ export function BottomNav({
   return (
     <>
       <nav
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-[rgba(7,11,20,0.92)] px-2 pt-1.5 backdrop-blur-xl lg:hidden"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-3 pt-2 backdrop-blur-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] lg:hidden"
         aria-label="Navegação rápida"
       >
-        <div className="mx-auto grid max-w-lg grid-cols-5 gap-0.5">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {items.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
@@ -48,17 +48,19 @@ export function BottomNav({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold transition",
-                  active ? "text-white" : "text-muted active:bg-white/5",
+                  "flex flex-col items-center gap-1 rounded-2xl px-1 py-1.5 text-[11px] font-semibold transition active:scale-95",
+                  active ? "text-white font-bold" : "text-muted hover:text-ink",
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-xl transition",
-                    active && "bg-brand text-white shadow-[0_8px_18px_-10px_rgba(47,107,255,1)]",
+                    "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
+                    active
+                      ? "bg-brand text-white shadow-[0_4px_14px_rgba(59,130,246,0.5)] scale-105"
+                      : "text-muted hover:bg-white/5",
                   )}
                 >
-                  <Icon className="h-[18px] w-[18px]" aria-hidden />
+                  <Icon className="h-5 w-5" aria-hidden />
                 </span>
                 <span className="truncate">{item.short}</span>
               </Link>
@@ -67,10 +69,10 @@ export function BottomNav({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold text-muted transition active:bg-white/5"
+            className="flex flex-col items-center gap-1 rounded-2xl px-1 py-1.5 text-[11px] font-semibold text-muted transition hover:text-ink active:scale-95"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl">
-              <Menu className="h-[18px] w-[18px]" aria-hidden />
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-white/5">
+              <Menu className="h-5 w-5" aria-hidden />
             </span>
             Mais
           </button>

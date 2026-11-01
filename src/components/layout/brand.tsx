@@ -18,31 +18,31 @@ export function Brand({
   className?: string;
 }) {
   return (
-    <Link href={href} className={cn("group flex min-w-0 items-center gap-2.5", className)}>
+    <Link href={href} className={cn("group flex min-w-0 items-center gap-3", className)}>
       <span
         className={cn(
-          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#1d4ed8] via-[#2f6bff] to-[#38bdf8] shadow-[0_10px_24px_-10px_rgba(47,107,255,0.9)] transition group-hover:scale-[1.03]",
-          compact ? "h-9 w-9" : "h-10 w-10",
+          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-white/[0.08] to-transparent p-1 ring-1 ring-white/15 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.5)] transition duration-300 group-hover:scale-105 group-hover:ring-brand/40",
+          compact ? "h-11 w-11" : "h-12 w-12",
         )}
       >
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+          <img src={logoUrl} alt={siteName} className="h-full w-full object-contain filter drop-shadow" />
         ) : (
-          <Volleyball className={cn("text-white", compact ? "h-5 w-5" : "h-[22px] w-[22px]")} aria-hidden />
+          <Volleyball className={cn("text-brand", compact ? "h-6 w-6" : "h-7 w-7")} aria-hidden />
         )}
       </span>
       <span className="min-w-0">
         <span
           className={cn(
-            "block truncate font-display font-bold uppercase leading-none tracking-wide text-ink",
-            compact ? "text-base" : "text-lg",
+            "block truncate font-display font-black tracking-wider text-ink transition-colors group-hover:text-white",
+            compact ? "text-base tracking-wide" : "text-lg",
           )}
         >
           {siteName}
         </span>
         {tagline ? (
-          <span className="mt-0.5 block truncate text-[9px] font-semibold uppercase tracking-[0.2em] text-muted">
+          <span className="mt-0.5 block truncate text-[10px] font-bold uppercase tracking-[0.22em] text-[#7fa2ff]">
             {tagline}
           </span>
         ) : null}

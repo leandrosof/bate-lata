@@ -15,6 +15,7 @@ export type RosterPlayer = {
   checkedInAt: Date | null;
   queuePosition: number | null;
   gamesPlayed: number;
+  isOrganizer: boolean;
   since: Date;
 };
 
@@ -38,6 +39,7 @@ async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
       total: count(),
     })
     .from(attendances)
+    .where(eq(attendances.isOrganizer, false))
     .groupBy(attendances.eventId, attendances.status);
 
   return rows.map((event) => {
@@ -168,6 +170,7 @@ export async function listAllEvents(limit = 80): Promise<EventSummary[]> {
 
 export async function getEventRoster(eventId: string): Promise<{
   confirmed: RosterPlayer[];
+  organizers: RosterPlayer[];
   waitlist: RosterPlayer[];
   pending: { userId: string; name: string; nickname: string | null; avatarUpdatedAt: Date | null }[];
   cancelled: RosterPlayer[];
@@ -185,6 +188,7 @@ export async function getEventRoster(eventId: string): Promise<{
       checkedInAt: attendances.checkedInAt,
       queuePosition: attendances.queuePosition,
       gamesPlayed: attendances.gamesPlayed,
+      isOrganizer: attendances.isOrganizer,
       since: attendances.createdAt,
     })
     .from(attendances)
@@ -193,7 +197,10 @@ export async function getEventRoster(eventId: string): Promise<{
     .orderBy(asc(attendances.waitlistPosition), asc(attendances.createdAt));
 
   const confirmed = rows
-    .filter((row) => row.status === "CONFIRMED")
+    .filter((row) => row.status === "CONFIRMED" && !row.isOrganizer)
+    .sort((a, b) => a.since.getTime() - b.since.getTime());
+  const organizers = rows
+    .filter((row) => row.status === "CONFIRMED" && row.isOrganizer)
     .sort((a, b) => a.since.getTime() - b.since.getTime());
   const waitlist = rows
     .filter((row) => row.status === "WAITLIST")
@@ -214,7 +221,7 @@ export async function getEventRoster(eventId: string): Promise<{
 
   const pending = activeUsers.filter((user) => !listed.has(user.userId));
 
-  return { confirmed, waitlist, pending, cancelled };
+  return { confirmed, organizers, waitlist, pending, cancelled };
 }
 
 export async function listConfirmedPlayers(eventId: string) {
@@ -231,6 +238,7 @@ export async function listConfirmedPlayers(eventId: string) {
       and(
         eq(attendances.eventId, eventId),
         eq(attendances.status, "CONFIRMED"),
+        eq(attendances.isOrganizer, false),
         eq(users.active, true),
       ),
     )
@@ -241,7 +249,7 @@ export async function listConfirmedCount(eventId: string): Promise<number> {
   const [row] = await db
     .select({ total: count() })
     .from(attendances)
-    .where(and(eq(attendances.eventId, eventId), eq(attendances.status, "CONFIRMED")));
+    .where(and(eq(attendances.eventId, eventId), eq(attendances.status, "CONFIRMED"), eq(attendances.isOrganizer, false)));
   return Number(row?.total ?? 0);
 }
 
@@ -251,6 +259,7 @@ export async function getAttendanceMap(userId: string) {
       eventId: attendances.eventId,
       status: attendances.status,
       waitlistPosition: attendances.waitlistPosition,
+      isOrganizer: attendances.isOrganizer,
     })
     .from(attendances)
     .where(eq(attendances.userId, userId));

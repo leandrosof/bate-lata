@@ -135,6 +135,7 @@ export default async function UpcomingPage() {
                       waitlistPosition={mine?.waitlistPosition ?? null}
                       isFull={isFull}
                       allowWaitlist={settings.allowWaitlist}
+                      isOrganizer={Boolean(mine?.isOrganizer)}
                       size="sm"
                       block={false}
                     />

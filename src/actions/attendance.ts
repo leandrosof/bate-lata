@@ -1,9 +1,9 @@
 "use server";
 
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
-import { attendances, events, users } from "@/db/schema";
+import { attendances, events, gamePlayers, games, users } from "@/db/schema";
 import {
   AppError,
   actionFailure,
@@ -12,6 +12,7 @@ import {
   success,
   type ActionState,
 } from "@/lib/action";
+import { recordAudit } from "@/lib/audit";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import {
@@ -97,7 +98,7 @@ export async function confirmAttendanceAction(
       const [confirmedRow] = await tx
         .select({ total: count() })
         .from(attendances)
-        .where(and(eq(attendances.eventId, event.id), eq(attendances.status, "CONFIRMED")));
+        .where(and(eq(attendances.eventId, event.id), eq(attendances.status, "CONFIRMED"), eq(attendances.isOrganizer, false)));
       const confirmedTotal = Number(confirmedRow?.total ?? 0);
 
       if (confirmedTotal < event.maxPlayers) {
@@ -250,7 +251,7 @@ export async function adminAddAttendanceAction(
       const [confirmedRow] = await tx
         .select({ total: count() })
         .from(attendances)
-        .where(and(eq(attendances.eventId, event.id), eq(attendances.status, "CONFIRMED")));
+        .where(and(eq(attendances.eventId, event.id), eq(attendances.status, "CONFIRMED"), eq(attendances.isOrganizer, false)));
       const confirmedTotal = Number(confirmedRow?.total ?? 0);
 
       if (confirmedTotal < event.maxPlayers) {
@@ -385,7 +386,7 @@ export async function adminPromoteAttendanceAction(
       const [confirmedRow] = await tx
         .select({ total: count() })
         .from(attendances)
-        .where(and(eq(attendances.eventId, event.id), eq(attendances.status, "CONFIRMED")));
+        .where(and(eq(attendances.eventId, event.id), eq(attendances.status, "CONFIRMED"), eq(attendances.isOrganizer, false)));
 
       if (Number(confirmedRow?.total ?? 0) >= event.maxPlayers) {
         throw new AppError("Não há vagas. Aumente o limite ou cancele alguém primeiro.");
@@ -458,6 +459,92 @@ export async function adminMoveWaitlistAction(
 
     revalidatePath("/", "layout");
     return success("Fila de espera atualizada.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function toggleOrganizerAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = attendanceIdSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor) return fail("Sua sessão expirou. Entre novamente.");
+
+  try {
+    const message = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(attendances)
+        .where(eq(attendances.id, parsed.data.attendanceId))
+        .for("update")
+        .limit(1);
+      if (!row) throw new AppError("Presença não encontrada.");
+      if (actor.role !== "ADMIN" && row.userId !== actor.id) {
+        throw new AppError("Você só pode alterar a sua própria presença.");
+      }
+
+      if (!row.isOrganizer) {
+        const [activeGame] = await tx
+          .select({ id: gamePlayers.id })
+          .from(gamePlayers)
+          .innerJoin(games, eq(games.id, gamePlayers.gameId))
+          .where(
+            and(
+              eq(gamePlayers.userId, row.userId),
+              eq(games.eventId, row.eventId),
+              inArray(games.status, ["IN_PROGRESS", "NOT_STARTED"]),
+            ),
+          )
+          .limit(1);
+        if (activeGame) {
+          throw new AppError("Saia ou seja substituído na partida antes de virar organizador.");
+        }
+
+        await tx
+          .update(attendances)
+          .set({
+            isOrganizer: true,
+            rotationStatus: "IDLE",
+            queuePosition: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(attendances.id, row.id));
+        return "Agora você está apenas organizando.";
+      }
+
+      const [maxRow] = await tx
+        .select({ position: sql<number>`max(${attendances.queuePosition})` })
+        .from(attendances)
+        .where(eq(attendances.eventId, row.eventId));
+
+      await tx
+        .update(attendances)
+        .set({
+          isOrganizer: false,
+          status: "CONFIRMED",
+          checkedInAt: row.checkedInAt ?? new Date(),
+          rotationStatus: "WAITING",
+          queuePosition: Number(maxRow?.position ?? 0) + 1,
+          leftAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(attendances.id, row.id));
+      return "Você voltou para a lista de jogadores.";
+    });
+
+    await recordAudit({
+      actorId: actor.id,
+      action: "attendance.organizer",
+      entity: "attendance",
+      entityId: parsed.data.attendanceId,
+    });
+
+    revalidatePath("/", "layout");
+    return success(message);
   } catch (error) {
     return actionFailure(error);
   }

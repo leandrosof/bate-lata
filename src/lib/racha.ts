@@ -4,6 +4,7 @@ export type RachaPlayer = {
   userId: string;
   gamesPlayed: number;
   queuePosition: number;
+  blockId?: string | null;
 };
 
 export type RachaLineup = {
@@ -104,17 +105,45 @@ export function planNextMatch(input: {
     };
   }
 
-  const ordered = orderQueue([...waiting, ...appendedLosers], rule);
-  if (ordered.length < teamSize) {
-    return { ok: false, missing: teamSize - ordered.length };
+  const candidates = [...waiting, ...appendedLosers].sort(
+    (a, b) => a.queuePosition - b.queuePosition,
+  );
+  if (candidates.length < teamSize) {
+    return { ok: false, missing: teamSize - candidates.length };
   }
+
+  let opponent: RachaPlayer[] = [];
+  for (let index = 0; index < candidates.length; ) {
+    const blockId = candidates[index].blockId;
+    if (!blockId) {
+      index += 1;
+      continue;
+    }
+    let end = index;
+    while (end < candidates.length && candidates[end].blockId === blockId) end += 1;
+    if (end - index >= teamSize) {
+      opponent = candidates.slice(index, index + teamSize);
+      break;
+    }
+    index = end;
+  }
+
+  if (opponent.length < teamSize) {
+    opponent = orderQueue(candidates, rule).slice(0, teamSize);
+  }
+
+  const selected = new Set(opponent.map((player) => player.userId));
+  const queue = candidates
+    .filter((player) => !selected.has(player.userId))
+    .sort((a, b) => a.queuePosition - b.queuePosition)
+    .map((player) => player.userId);
 
   return {
     ok: true,
     winnerStayed: true,
     sideA: [...winnerIds],
-    sideB: ordered.slice(0, teamSize).map((player) => player.userId),
-    queue: ordered.slice(teamSize).map((player) => player.userId),
+    sideB: opponent.map((player) => player.userId),
+    queue,
   };
 }
 

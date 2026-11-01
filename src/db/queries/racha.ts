@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../client";
-import { attendances, drawTeams, draws, gamePlayers, games, users } from "../schema";
+import { attendances, drawTeams, draws, gamePlayers, games, rotationCourts, users } from "../schema";
 import type { Draw, DrawTeam } from "../schema";
 
 export type RachaPlayerView = {
@@ -23,6 +23,7 @@ export type RachaGamePlayer = {
 export type RachaGameView = {
   id: string;
   sequence: number;
+  court: number;
   status: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
   scoreA: number;
   scoreB: number;
@@ -38,11 +39,19 @@ export type RachaGameView = {
   canUndo: boolean;
 };
 
+export type RachaCourtView = {
+  id: string;
+  number: number;
+  status: "EMPTY" | "WAITING" | "PLAYING";
+  game: RachaGameView | null;
+};
+
 export type RachaView = {
   session: Draw | null;
   teams: DrawTeam[];
   present: RachaPlayerView[];
   queue: RachaPlayerView[];
+  courts: RachaCourtView[];
   currentGame: RachaGameView | null;
   history: RachaGameView[];
   teamSize: number;
@@ -77,6 +86,7 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
       and(
         eq(attendances.eventId, eventId),
         eq(attendances.status, "CONFIRMED"),
+        eq(attendances.isOrganizer, false),
         ne(attendances.rotationStatus, "IDLE"),
         eq(users.active, true),
       ),
@@ -94,6 +104,7 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
       teams: [],
       present,
       queue,
+      courts: [],
       currentGame: null,
       history: [],
       teamSize: 0,
@@ -145,6 +156,7 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
     return {
       id: row.id,
       sequence: row.sequence,
+      court: row.court,
       status: row.status,
       scoreA: row.scoreA,
       scoreB: row.scoreB,
@@ -169,10 +181,35 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
   }
 
   const views = gameRows.map(toView);
-  const currentGame =
-    views
-      .filter((game) => game.status === "IN_PROGRESS" || game.status === "NOT_STARTED")
-      .sort((a, b) => b.sequence - a.sequence)[0] ?? null;
+
+  const courtRows = await db
+    .select()
+    .from(rotationCourts)
+    .where(eq(rotationCourts.sessionId, session.id))
+    .orderBy(asc(rotationCourts.number));
+
+  const activeGames = views
+    .filter((game) => game.status === "IN_PROGRESS" || game.status === "NOT_STARTED")
+    .sort((a, b) => b.sequence - a.sequence);
+
+  const courts: RachaCourtView[] =
+    courtRows.length > 0
+      ? courtRows.map((court) => ({
+          id: court.id,
+          number: court.number,
+          status: court.status,
+          game: activeGames.find((game) => game.court === court.number) ?? null,
+        }))
+      : [
+          {
+            id: "legacy",
+            number: 1,
+            status: activeGames[0] ? "PLAYING" : "EMPTY",
+            game: activeGames[0] ?? null,
+          },
+        ];
+
+  const currentGame = activeGames[0] ?? null;
   const history = views
     .filter((game) => game.status === "FINISHED")
     .sort((a, b) => b.sequence - a.sequence);
@@ -187,6 +224,7 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
     teams,
     present,
     queue,
+    courts,
     currentGame,
     history,
     teamSize,

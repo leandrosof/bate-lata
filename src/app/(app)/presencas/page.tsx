@@ -6,6 +6,7 @@ import {
   Clock,
   ListOrdered,
   MapPin,
+  UserCog,
   UserPlus,
   Users,
   X,
@@ -15,6 +16,7 @@ import {
   adminMoveWaitlistAction,
   adminPromoteAttendanceAction,
   adminRemoveAttendanceAction,
+  toggleOrganizerAction,
 } from "@/actions/attendance";
 import { AttendanceControls } from "@/components/features/attendance-controls";
 import { EventPicker } from "@/components/features/event-picker";
@@ -54,7 +56,7 @@ export default async function AttendancePage({
 
   const roster = selected ? await getEventRoster(selected.id) : null;
   const mine = roster
-    ? ([...roster.confirmed, ...roster.waitlist].find((row) => row.userId === user.id) ?? null)
+    ? ([...roster.confirmed, ...roster.organizers, ...roster.waitlist].find((row) => row.userId === user.id) ?? null)
     : null;
 
   const isAdmin = user.role === "ADMIN";
@@ -145,6 +147,7 @@ export default async function AttendancePage({
                 waitlistPosition={mine?.waitlistPosition ?? null}
                 isFull={isFull}
                 allowWaitlist={settings.allowWaitlist}
+                isOrganizer={Boolean(mine?.isOrganizer)}
               />
             </CardBody>
           </Card>
@@ -181,16 +184,30 @@ export default async function AttendancePage({
                           {player.nickname ? <p className="text-[11px] text-muted">@{player.nickname}</p> : null}
                         </div>
                         {isAdmin ? (
-                          <ActionButton
-                            action={adminRemoveAttendanceAction}
-                            fields={{ attendanceId: player.attendanceId }}
-                            variant="ghost"
-                            size="icon-sm"
-                            confirmMessage={`Remover ${player.name} da lista?`}
-                            title="Remover presença"
-                          >
-                            <X className="h-3.5 w-3.5" aria-hidden />
-                          </ActionButton>
+                          <div className="flex items-center gap-0.5">
+                            {player.userId === user.id ? (
+                              <ActionButton
+                                action={toggleOrganizerAction}
+                                fields={{ attendanceId: player.attendanceId }}
+                                variant="ghost"
+                                size="icon-sm"
+                                confirmMessage="Marcar você como organizador? Você sai da lista de jogadores e não entra nos times."
+                                title="Só organizar"
+                              >
+                                <UserCog className="h-3.5 w-3.5" aria-hidden />
+                              </ActionButton>
+                            ) : null}
+                            <ActionButton
+                              action={adminRemoveAttendanceAction}
+                              fields={{ attendanceId: player.attendanceId }}
+                              variant="ghost"
+                              size="icon-sm"
+                              confirmMessage={`Remover ${player.name} da lista?`}
+                              title="Remover presença"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden />
+                            </ActionButton>
+                          </div>
                         ) : null}
                       </li>
                     ))}
@@ -232,33 +249,39 @@ export default async function AttendancePage({
                         </p>
                         {isAdmin ? (
                           <div className="flex items-center gap-0.5">
-                            <ActionButton
-                              action={adminMoveWaitlistAction}
-                              fields={{ attendanceId: player.attendanceId, direction: "up" }}
-                              variant="ghost"
-                              size="icon-sm"
-                              title="Subir na fila"
-                            >
-                              <ArrowUp className="h-3.5 w-3.5" aria-hidden />
-                            </ActionButton>
-                            <ActionButton
-                              action={adminMoveWaitlistAction}
-                              fields={{ attendanceId: player.attendanceId, direction: "down" }}
-                              variant="ghost"
-                              size="icon-sm"
-                              title="Descer na fila"
-                            >
-                              <ArrowDown className="h-3.5 w-3.5" aria-hidden />
-                            </ActionButton>
-                            <ActionButton
-                              action={adminPromoteAttendanceAction}
-                              fields={{ attendanceId: player.attendanceId }}
-                              variant="ghost"
-                              size="icon-sm"
-                              title="Promover para confirmado"
-                            >
-                              <Check className="h-3.5 w-3.5" aria-hidden />
-                            </ActionButton>
+                            {index > 0 ? (
+                              <ActionButton
+                                action={adminMoveWaitlistAction}
+                                fields={{ attendanceId: player.attendanceId, direction: "up" }}
+                                variant="ghost"
+                                size="icon-sm"
+                                title="Subir na fila"
+                              >
+                                <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                              </ActionButton>
+                            ) : null}
+                            {index < roster.waitlist.length - 1 ? (
+                              <ActionButton
+                                action={adminMoveWaitlistAction}
+                                fields={{ attendanceId: player.attendanceId, direction: "down" }}
+                                variant="ghost"
+                                size="icon-sm"
+                                title="Descer na fila"
+                              >
+                                <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                              </ActionButton>
+                            ) : null}
+                            {!isFull ? (
+                              <ActionButton
+                                action={adminPromoteAttendanceAction}
+                                fields={{ attendanceId: player.attendanceId }}
+                                variant="ghost"
+                                size="icon-sm"
+                                title="Promover para confirmado"
+                              >
+                                <Check className="h-3.5 w-3.5" aria-hidden />
+                              </ActionButton>
+                            ) : null}
                             <ActionButton
                               action={adminRemoveAttendanceAction}
                               fields={{ attendanceId: player.attendanceId }}
@@ -278,6 +301,48 @@ export default async function AttendancePage({
               </CardBody>
             </Card>
           </div>
+
+          {roster.organizers.length > 0 ? (
+            <Card data-testid="organizers-card">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-[#9db8ff]">
+                    <UserCog className="h-4 w-4" aria-hidden />
+                  </span>
+                  <CardTitle>Organizadores</CardTitle>
+                </div>
+                <Badge tone="brand">{roster.organizers.length}</Badge>
+              </CardHeader>
+              <CardBody className="space-y-1.5 pt-2">
+                <p className="text-xs text-muted">Não entram na capacidade, na fila nem nos times.</p>
+                <ul className="divide-y divide-line/60">
+                  {roster.organizers.map((organizer) => (
+                    <li key={organizer.attendanceId} className="flex items-center gap-2 py-2">
+                      <Avatar
+                        userId={organizer.userId}
+                        name={organizer.name}
+                        version={organizer.avatarUpdatedAt}
+                        size="sm"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink">{organizer.name}</span>
+                      {isAdmin && organizer.userId === user.id ? (
+                        <ActionButton
+                          action={toggleOrganizerAction}
+                          fields={{ attendanceId: organizer.attendanceId }}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Vou jogar
+                        </ActionButton>
+                      ) : (
+                        <Badge>Organizador</Badge>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardBody>
+            </Card>
+          ) : null}
 
           <Card data-testid="pending-card">
             <CardHeader>

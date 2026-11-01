@@ -21,20 +21,20 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-[#080d18]/92 backdrop-blur-xl lg:flex">
-        <div className="px-4 py-5">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface/90 backdrop-blur-2xl lg:flex">
+        <div className="px-5 py-6">
           <Brand siteName={settings.siteName} tagline={settings.tagline} logoUrl={settings.logoUrl || "/logo.png"} />
         </div>
         <SidebarLinks isAdmin={isAdmin} rankingEnabled={settings.rankingEnabled} />
-        <div className="border-t border-line p-3">
+        <div className="border-t border-line/60 p-3">
           <Link
             href="/perfil"
-            className="flex items-center gap-2.5 rounded-xl p-2 transition hover:bg-white/5"
+            className="flex items-center gap-3 rounded-2xl p-2.5 transition hover:bg-white/[0.05]"
           >
             <Avatar userId={user.id} name={user.name} version={user.avatarUpdatedAt} size="sm" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-ink">{user.name}</span>
-              <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-muted">
                 {isAdmin ? "Administrador" : "Jogador"}
               </span>
             </span>
@@ -42,7 +42,7 @@ export function AppShell({
           <form action={logoutAction}>
             <button
               type="submit"
-              className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-muted transition hover:bg-white/5 hover:text-ink"
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted transition hover:bg-rose-500/10 hover:text-rose-400"
             >
               <LogOut className="h-4 w-4" aria-hidden />
               Sair
@@ -52,19 +52,19 @@ export function AppShell({
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 border-b border-line bg-[#070b14]/85 backdrop-blur-xl lg:hidden">
-          <div className="flex h-14 items-center justify-between gap-3 px-4">
+        <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur-xl lg:hidden">
+          <div className="flex h-16 items-center justify-between gap-3 px-4">
             <Brand
               compact
               siteName={settings.siteName}
               tagline={settings.tagline}
               logoUrl={settings.logoUrl || "/logo.png"}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {isAdmin ? (
                 <Link
                   href="/admin"
-                  className="rounded-lg border border-brand/30 bg-brand/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#9db8ff]"
+                  className="rounded-lg border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand"
                 >
                   Admin
                 </Link>
