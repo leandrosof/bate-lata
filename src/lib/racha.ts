@@ -22,13 +22,13 @@ export function orderQueue(
   rule: RachaRule,
 ): RachaPlayer[] {
   const copy = [...players];
-  if (rule === "WINNER_STAYS" || rule === "ARRIVAL_QUEUE") {
+  if (rule === "ROTATE_ALL") {
     copy.sort(
-      (a, b) => a.queuePosition - b.queuePosition || a.gamesPlayed - b.gamesPlayed,
+      (a, b) => a.gamesPlayed - b.gamesPlayed || a.queuePosition - b.queuePosition,
     );
   } else {
     copy.sort(
-      (a, b) => a.gamesPlayed - b.gamesPlayed || a.queuePosition - b.queuePosition,
+      (a, b) => a.queuePosition - b.queuePosition || a.gamesPlayed - b.gamesPlayed,
     );
   }
   return copy;
@@ -113,19 +113,13 @@ export function planNextMatch(input: {
   }
 
   let opponent: RachaPlayer[] = [];
-  for (let index = 0; index < candidates.length; ) {
-    const blockId = candidates[index].blockId;
-    if (!blockId) {
-      index += 1;
-      continue;
+  const firstBlockId = candidates[0]?.blockId;
+  if (firstBlockId) {
+    let end = 0;
+    while (end < candidates.length && candidates[end].blockId === firstBlockId) end += 1;
+    if (end >= teamSize) {
+      opponent = candidates.slice(0, teamSize);
     }
-    let end = index;
-    while (end < candidates.length && candidates[end].blockId === blockId) end += 1;
-    if (end - index >= teamSize) {
-      opponent = candidates.slice(index, index + teamSize);
-      break;
-    }
-    index = end;
   }
 
   if (opponent.length < teamSize) {

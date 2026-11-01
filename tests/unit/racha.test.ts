@@ -17,16 +17,28 @@ function players(count: number, gamesPlayed = 0): RachaPlayer[] {
 }
 
 describe("orderQueue", () => {
-  it("prioriza quem jogou menos e usa a fila como desempate", () => {
+  it("no rodízio total prioriza quem jogou menos", () => {
     const ordered = orderQueue(
       [
         { userId: "a", gamesPlayed: 2, queuePosition: 1 },
         { userId: "b", gamesPlayed: 0, queuePosition: 3 },
         { userId: "c", gamesPlayed: 0, queuePosition: 2 },
       ],
-      "HYBRID",
+      "ROTATE_ALL",
     );
     expect(ordered.map((entry) => entry.userId)).toEqual(["c", "b", "a"]);
+  });
+
+  it("no híbrido respeita a ordem visível da fila", () => {
+    const ordered = orderQueue(
+      [
+        { userId: "a", gamesPlayed: 0, queuePosition: 1 },
+        { userId: "b", gamesPlayed: 15, queuePosition: 2 },
+        { userId: "c", gamesPlayed: 3, queuePosition: 3 },
+      ],
+      "HYBRID",
+    );
+    expect(ordered.map((entry) => entry.userId)).toEqual(["a", "b", "c"]);
   });
 
   it("na regra de fila/chegada respeita a posição", () => {
@@ -81,6 +93,47 @@ describe("planNextMatch", () => {
     expect(plan.queue).toEqual(["p4", "p5", "p6"]);
   });
 
+  it("não pula quem está na frente da fila por causa de um bloco atrás", () => {
+    const plan = planNextMatch({
+      rule: "HYBRID",
+      teamSize: 2,
+      players: [
+        { userId: "mariana", gamesPlayed: 4, queuePosition: 1 },
+        { userId: "b1", gamesPlayed: 12, queuePosition: 2, blockId: "time" },
+        { userId: "b2", gamesPlayed: 12, queuePosition: 3, blockId: "time" },
+        { userId: "w1", gamesPlayed: 20, queuePosition: 0 },
+        { userId: "w2", gamesPlayed: 20, queuePosition: 0 },
+        { userId: "l1", gamesPlayed: 12, queuePosition: 4 },
+        { userId: "l2", gamesPlayed: 12, queuePosition: 5 },
+      ],
+      winnerIds: ["w1", "w2"],
+      loserIds: ["l1", "l2"],
+    });
+
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.sideB).toContain("mariana");
+  });
+
+  it("usa o bloco quando ele está na frente da fila", () => {
+    const plan = planNextMatch({
+      rule: "HYBRID",
+      teamSize: 2,
+      players: [
+        { userId: "b1", gamesPlayed: 12, queuePosition: 1, blockId: "time" },
+        { userId: "b2", gamesPlayed: 12, queuePosition: 2, blockId: "time" },
+        { userId: "mariana", gamesPlayed: 4, queuePosition: 3 },
+        { userId: "w1", gamesPlayed: 20, queuePosition: 0 },
+        { userId: "w2", gamesPlayed: 20, queuePosition: 0 },
+      ],
+      winnerIds: ["w1", "w2"],
+      loserIds: [],
+    });
+
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.sideB).toEqual(["b1", "b2"]);
+  });
   it("com dois times eles alternam", () => {
     const pool = players(6).map((player) => ({ ...player, gamesPlayed: 1 }));
     const plan = planNextMatch({

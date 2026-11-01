@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
   Flag,
   ListOrdered,
   LogIn,
@@ -24,6 +26,7 @@ import {
   finalizeMatchAction,
   leaveRachaAction,
   mixNextMatchAction,
+  moveQueuePlayerAction,
   openCourtAction,
   restartRachaAction,
   setQueueModeAction,
@@ -598,17 +601,41 @@ export default async function RachaPage({
                             {player.gamesPlayed} {player.gamesPlayed === 1 ? "jogo" : "jogos"}
                           </span>
                           {isAdmin ? (
-                            <ActionButton
-                              action={leaveRachaAction}
-                              fields={{ attendanceId: player.attendanceId }}
-                              variant="ghost"
-                              size="icon-sm"
-                              className="text-muted hover:bg-rose-500/10 hover:text-rose-400"
-                              confirmMessage={`Remover ${player.name} da fila?`}
-                              title="Remover da fila"
-                            >
-                              <LogOut className="h-4 w-4" aria-hidden />
-                            </ActionButton>
+                            <div className="flex items-center gap-0.5">
+                              {index > 0 ? (
+                                <ActionButton
+                                  action={moveQueuePlayerAction}
+                                  fields={{ attendanceId: player.attendanceId, direction: "up" }}
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title="Subir na fila"
+                                >
+                                  <ArrowUp className="h-4 w-4" aria-hidden />
+                                </ActionButton>
+                              ) : null}
+                              {index < view.queue.length - 1 ? (
+                                <ActionButton
+                                  action={moveQueuePlayerAction}
+                                  fields={{ attendanceId: player.attendanceId, direction: "down" }}
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title="Descer na fila"
+                                >
+                                  <ArrowDown className="h-4 w-4" aria-hidden />
+                                </ActionButton>
+                              ) : null}
+                              <ActionButton
+                                action={leaveRachaAction}
+                                fields={{ attendanceId: player.attendanceId }}
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-muted hover:bg-rose-500/10 hover:text-rose-400"
+                                confirmMessage={`Remover ${player.name} da fila?`}
+                                title="Remover da fila"
+                              >
+                                <LogOut className="h-4 w-4" aria-hidden />
+                              </ActionButton>
+                            </div>
                           ) : null}
                         </li>
                       ))}

@@ -151,6 +151,11 @@ export const rachaQueueModeSchema = z.object({
   mode: z.enum(["KEEP_TEAM", "MIX"]),
 });
 
+export const rachaQueueMoveSchema = z.object({
+  attendanceId: uuidSchema,
+  direction: z.enum(["up", "down"]),
+});
+
 export const rachaCourtSchema = z.object({
   drawId: uuidSchema,
   court: z.coerce.number().int().min(1).max(20),

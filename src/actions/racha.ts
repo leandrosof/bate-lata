@@ -38,6 +38,7 @@ import {
   rachaAttendanceSchema,
   rachaCourtSchema,
   rachaQueueModeSchema,
+  rachaQueueMoveSchema,
   rachaSessionSchema,
   rachaStartSchema,
   rachaSubstitutionSchema,
@@ -155,6 +156,46 @@ async function appendPlayersToQueue(
   }
 }
 
+async function dissolvePartialBlocks(
+  tx: Tx,
+  eventId: string,
+  teamSize: number,
+): Promise<void> {
+  await tx.execute(sql`
+    with blocks as (
+      select queue_team_id, count(*) as total
+      from attendances
+      where event_id = ${eventId}
+        and rotation_status = 'WAITING'
+        and is_organizer = false
+        and queue_team_id is not null
+      group by queue_team_id
+    )
+    update attendances a
+    set queue_team_id = null, updated_at = now()
+    from blocks
+    where a.event_id = ${eventId}
+      and a.queue_team_id = blocks.queue_team_id
+      and blocks.total < ${teamSize}
+  `);
+}
+async function renumberQueue(tx: Tx, eventId: string): Promise<void> {
+  await tx.execute(sql`
+    with ranked as (
+      select id, row_number() over (
+        order by queue_position nulls last, created_at asc, id asc
+      ) as rn
+      from attendances
+      where event_id = ${eventId}
+        and rotation_status = 'WAITING'
+        and is_organizer = false
+    )
+    update attendances a
+    set queue_position = ranked.rn, updated_at = now()
+    from ranked
+    where a.id = ranked.id
+  `);
+}
 async function normalizeOrphanPlayers(
   tx: Tx,
   drawId: string,
@@ -819,6 +860,7 @@ export async function finalizeMatchAction(
       const [event] = await tx.select().from(events).where(eq(events.id, game.eventId)).limit(1);
       const rule = toRule(event?.rotationRule ?? "HYBRID");
       const keepTeam = draw.queueMode === "KEEP_TEAM";
+      await dissolvePartialBlocks(tx, game.eventId, draw.teamSize);
       const present = await loadPresent(tx, game.eventId);
       const planPlayers = present.filter(
         (row) =>
@@ -889,6 +931,7 @@ export async function finalizeMatchAction(
           .update(games)
           .set({ undoState: { attendances: snapshot, nextGameId: null } })
           .where(eq(games.id, game.id));
+        await renumberQueue(tx, game.eventId);
         return `Partida finalizada. Faltam ${plan.missing} jogador(es) para montar o próximo jogo.`;
       }
 
@@ -1018,6 +1061,7 @@ export async function finalizeMatchAction(
         );
 
       await applyLineup(tx, game.eventId, plan.sideA, plan.sideB, plan.queue, blocks);
+      await renumberQueue(tx, game.eventId);
       await tx
         .update(games)
         .set({ undoState: { attendances: snapshot, nextGameId: next.id } })
@@ -1679,6 +1723,7 @@ export async function closeCourtAction(
       }
 
       await normalizeOrphanPlayers(tx, draw.id, draw.eventId);
+      await renumberQueue(tx, draw.eventId);
 
       await tx.delete(rotationCourts).where(eq(rotationCourts.id, court.id));
       const remaining = await tx
@@ -1797,6 +1842,66 @@ export async function setQueueModeAction(
         ? "Fila mantém o time perdedor junto."
         : "Fila mistura os jogadores.",
     );
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function moveQueuePlayerAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = rachaQueueMoveSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(attendances)
+        .where(eq(attendances.id, parsed.data.attendanceId))
+        .for("update")
+        .limit(1);
+      if (!row) throw new AppError("Presença não encontrada.");
+      if (row.rotationStatus !== "WAITING") {
+        throw new AppError("Este jogador não está na fila de espera.");
+      }
+
+      const queue = await tx
+        .select({ id: attendances.id })
+        .from(attendances)
+        .where(
+          and(
+            eq(attendances.eventId, row.eventId),
+            eq(attendances.rotationStatus, "WAITING"),
+            eq(attendances.isOrganizer, false),
+          ),
+        )
+        .orderBy(asc(attendances.queuePosition), asc(attendances.createdAt));
+
+      const currentIndex = queue.findIndex((item) => item.id === row.id);
+      const targetIndex =
+        parsed.data.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= queue.length) {
+        throw new AppError("Este jogador já está no limite da fila.");
+      }
+
+      const reordered = [...queue];
+      const [moved] = reordered.splice(currentIndex, 1);
+      reordered.splice(targetIndex, 0, moved);
+      for (let index = 0; index < reordered.length; index += 1) {
+        await tx
+          .update(attendances)
+          .set({ queuePosition: index + 1, updatedAt: new Date() })
+          .where(eq(attendances.id, reordered[index].id));
+      }
+    });
+
+    revalidatePath("/", "layout");
+    return success("Fila atualizada.");
   } catch (error) {
     return actionFailure(error);
   }
