@@ -198,7 +198,14 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
           id: court.id,
           number: court.number,
           status: court.status,
-          game: activeGames.find((game) => game.court === court.number) ?? null,
+          game:
+            activeGames.find(
+              (game) => game.court === court.number && game.status === "IN_PROGRESS",
+            ) ??
+            activeGames.find(
+              (game) => game.court === court.number && game.status === "NOT_STARTED",
+            ) ??
+            null,
         }))
       : [
           {

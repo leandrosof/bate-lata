@@ -303,7 +303,7 @@ export default async function RachaPage({
                           fields={{ drawId: session.id, court: selectedCourt.number }}
                           variant="ghost"
                           size="sm"
-                          confirmMessage={`Fechar a quadra ${selectedCourt.number}? Se houver jogo, ele será movido para outra quadra livre.`}
+                          confirmMessage={`Fechar a quadra ${selectedCourt.number}? Se houver jogo, ele será cancelado e os jogadores voltam para a fila de espera.`}
                         >
                           Fechar quadra
                         </ActionButton>

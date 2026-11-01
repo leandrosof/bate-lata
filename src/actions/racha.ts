@@ -892,6 +892,27 @@ export async function finalizeMatchAction(
         return `Partida finalizada. Faltam ${plan.missing} jogador(es) para montar o próximo jogo.`;
       }
 
+      await tx
+        .update(games)
+        .set({ status: "CANCELLED", updatedAt: new Date() })
+        .where(
+          and(
+            eq(games.drawId, draw.id),
+            eq(games.court, game.court),
+            eq(games.status, "IN_PROGRESS"),
+            ne(games.id, game.id),
+          ),
+        );
+      await tx
+        .delete(games)
+        .where(
+          and(
+            eq(games.drawId, draw.id),
+            eq(games.court, game.court),
+            eq(games.status, "NOT_STARTED"),
+          ),
+        );
+
       const [sequenceRow] = await tx
         .select({ sequence: sql<number>`max(${games.sequence})` })
         .from(games)
@@ -1443,7 +1464,12 @@ export async function restartRachaAction(
         .from(games)
         .where(and(eq(games.drawId, current.id), eq(games.status, "IN_PROGRESS")))
         .limit(1);
-      if (live) throw new AppError("Finalize a partida atual antes de reiniciar o racha.");
+      if (live) {
+        await tx
+          .update(games)
+          .set({ status: "CANCELLED", updatedAt: new Date() })
+          .where(and(eq(games.drawId, current.id), eq(games.status, "IN_PROGRESS")));
+      }
 
       await tx
         .update(draws)
@@ -1622,58 +1648,34 @@ export async function closeCourtAction(
         .limit(1);
 
       if (current) {
-        const [free] = await tx
-          .select()
-          .from(rotationCourts)
-          .where(
-            and(
-              eq(rotationCourts.sessionId, draw.id),
-              eq(rotationCourts.status, "EMPTY"),
-              ne(rotationCourts.number, court.number),
-            ),
-          )
-          .orderBy(asc(rotationCourts.number))
-          .limit(1);
+        const roster = await tx
+          .select({ userId: gamePlayers.userId })
+          .from(gamePlayers)
+          .where(eq(gamePlayers.gameId, current.id));
 
-        if (free) {
+        const courtPlayers = [
+          ...((court.playerAIds as string[] | null) ?? []),
+          ...((court.playerBIds as string[] | null) ?? []),
+        ];
+
+        if (current.status === "IN_PROGRESS") {
           await tx
             .update(games)
-            .set({ court: free.number, updatedAt: new Date() })
+            .set({ status: "CANCELLED", updatedAt: new Date() })
             .where(eq(games.id, current.id));
-
-          await tx
-            .update(rotationCourts)
-            .set({
-              status: court.status,
-              teamAId: court.teamAId,
-              teamBId: court.teamBId,
-              playerAIds: court.playerAIds,
-              playerBIds: court.playerBIds,
-              currentGameId: court.currentGameId,
-              updatedAt: new Date(),
-            })
-            .where(eq(rotationCourts.id, free.id));
         } else {
-          const roster = await tx
-            .select({ userId: gamePlayers.userId })
-            .from(gamePlayers)
-            .where(eq(gamePlayers.gameId, current.id));
-
-          if (current.status === "IN_PROGRESS") {
-            await tx
-              .update(games)
-              .set({ status: "CANCELLED", updatedAt: new Date() })
-              .where(eq(games.id, current.id));
-          } else {
-            await tx.delete(games).where(eq(games.id, current.id));
-          }
-
-          await appendPlayersToQueue(
-            tx,
-            draw.eventId,
-            roster.map((row) => row.userId),
-          );
+          await tx.delete(games).where(eq(games.id, current.id));
         }
+
+        await appendPlayersToQueue(tx, draw.eventId, [
+          ...roster.map((row) => row.userId),
+          ...courtPlayers,
+        ]);
+      } else {
+        await appendPlayersToQueue(tx, draw.eventId, [
+          ...((court.playerAIds as string[] | null) ?? []),
+          ...((court.playerBIds as string[] | null) ?? []),
+        ]);
       }
 
       await normalizeOrphanPlayers(tx, draw.id, draw.eventId);
