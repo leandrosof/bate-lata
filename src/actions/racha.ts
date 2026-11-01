@@ -292,37 +292,36 @@ async function createSession(
     })
     .returning();
 
-  const selected = ordered.slice(0, needed);
-  let visualIndex = 0;
+  const teamCount = Math.floor(ordered.length / teamSize);
+  if (teamCount < courtCount * 2) {
+    throw new AppError(
+      `São necessários ${courtCount * 2} times completos de ${teamSize} para abrir ${courtCount} quadra(s).`,
+    );
+  }
+
+  const teams: { id: string; players: string[] }[] = [];
+  for (let index = 0; index < teamCount; index += 1) {
+    const visual = teamVisualForIndex(index);
+    const [team] = await tx
+      .insert(drawTeams)
+      .values({
+        drawId: draw.id,
+        name: visual.name,
+        color: visual.color,
+        sortOrder: index,
+      })
+      .returning({ id: drawTeams.id });
+    teams.push({
+      id: team.id,
+      players: ordered
+        .slice(index * teamSize, (index + 1) * teamSize)
+        .map((row) => row.userId),
+    });
+  }
 
   for (let court = 1; court <= courtCount; court += 1) {
-    const offset = (court - 1) * teamSize * 2;
-    const sideA = selected.slice(offset, offset + teamSize).map((row) => row.userId);
-    const sideB = selected.slice(offset + teamSize, offset + teamSize * 2).map((row) => row.userId);
-
-    const visualA = teamVisualForIndex(visualIndex);
-    visualIndex += 1;
-    const visualB = teamVisualForIndex(visualIndex);
-    visualIndex += 1;
-
-    const [teamA] = await tx
-      .insert(drawTeams)
-      .values({
-        drawId: draw.id,
-        name: visualA.name,
-        color: visualA.color,
-        sortOrder: (court - 1) * 2,
-      })
-      .returning({ id: drawTeams.id });
-    const [teamB] = await tx
-      .insert(drawTeams)
-      .values({
-        drawId: draw.id,
-        name: visualB.name,
-        color: visualB.color,
-        sortOrder: (court - 1) * 2 + 1,
-      })
-      .returning({ id: drawTeams.id });
+    const teamA = teams[(court - 1) * 2];
+    const teamB = teams[(court - 1) * 2 + 1];
 
     const [game] = await tx
       .insert(games)
@@ -340,8 +339,8 @@ async function createSession(
       .returning({ id: games.id });
 
     await tx.insert(gamePlayers).values([
-      ...sideA.map((userId) => ({ gameId: game.id, teamId: teamA.id, userId })),
-      ...sideB.map((userId) => ({ gameId: game.id, teamId: teamB.id, userId })),
+      ...teamA.players.map((userId) => ({ gameId: game.id, teamId: teamA.id, userId })),
+      ...teamB.players.map((userId) => ({ gameId: game.id, teamId: teamB.id, userId })),
     ]);
 
     await tx.insert(rotationCourts).values({
@@ -350,37 +349,56 @@ async function createSession(
       status: "PLAYING",
       teamAId: teamA.id,
       teamBId: teamB.id,
-      playerAIds: sideA,
-      playerBIds: sideB,
+      playerAIds: teamA.players,
+      playerBIds: teamB.players,
       currentGameId: game.id,
     });
+
+    for (const userId of [...teamA.players, ...teamB.players]) {
+      await tx
+        .update(attendances)
+        .set({
+          rotationStatus: "PLAYING",
+          queuePosition: null,
+          queueTeamId: null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, userId)));
+    }
   }
 
-  for (const row of selected) {
+  let position = 0;
+  for (let index = courtCount * 2; index < teams.length; index += 1) {
+    const team = teams[index];
+    for (const userId of team.players) {
+      position += 1;
+      await tx
+        .update(attendances)
+        .set({
+          rotationStatus: "WAITING",
+          queuePosition: position,
+          queueTeamId: queueModeValue === "KEEP_TEAM" ? team.id : null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, userId)));
+    }
+  }
+
+  const freePlayers = ordered.slice(teamCount * teamSize);
+  for (const row of freePlayers) {
+    position += 1;
     await tx
       .update(attendances)
       .set({
-        rotationStatus: "PLAYING",
-        queuePosition: null,
+        rotationStatus: "WAITING",
+        queuePosition: position,
         queueTeamId: null,
         updatedAt: new Date(),
       })
       .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, row.userId)));
   }
 
-  const remaining = ordered.slice(needed);
-  for (let index = 0; index < remaining.length; index += 1) {
-    await tx
-      .update(attendances)
-      .set({
-        rotationStatus: "WAITING",
-        queuePosition: index + 1,
-        queueTeamId: null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, remaining[index].userId)));
-  }
-
+  return { draw };
   return { draw };
 }
 
