@@ -196,3 +196,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(0.8);
   cursor: pointer;
 }
+
+@keyframes feedback-auto-hide {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.feedback-auto-hide {
+  animation: feedback-auto-hide 0.35s ease 6s forwards;
+}

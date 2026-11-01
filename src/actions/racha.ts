@@ -29,6 +29,7 @@ import {
   type RachaPlayer,
   type RachaRule,
 } from "@/lib/racha";
+import { shuffle } from "@/lib/draw";
 import { getSessionUser } from "@/lib/session";
 import { teamVisualForIndex } from "@/lib/teams";
 import {
@@ -36,6 +37,7 @@ import {
   rachaAddPlayerSchema,
   rachaAttendanceSchema,
   rachaCourtSchema,
+  rachaQueueModeSchema,
   rachaSessionSchema,
   rachaStartSchema,
   rachaSubstitutionSchema,
@@ -128,6 +130,64 @@ async function applyLineup(
   }
 }
 
+async function appendPlayersToQueue(
+  tx: Tx,
+  eventId: string,
+  userIds: string[],
+): Promise<void> {
+  if (userIds.length === 0) return;
+  const [maxRow] = await tx
+    .select({ position: sql<number>`max(${attendances.queuePosition})` })
+    .from(attendances)
+    .where(eq(attendances.eventId, eventId));
+  let position = Number(maxRow?.position ?? 0);
+  for (const userId of [...new Set(userIds)]) {
+    position += 1;
+    await tx
+      .update(attendances)
+      .set({
+        rotationStatus: "WAITING",
+        queuePosition: position,
+        queueTeamId: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(attendances.eventId, eventId), eq(attendances.userId, userId)));
+  }
+}
+
+async function normalizeOrphanPlayers(
+  tx: Tx,
+  drawId: string,
+  eventId: string,
+): Promise<void> {
+  const activeRows = await tx
+    .select({ userId: gamePlayers.userId })
+    .from(gamePlayers)
+    .innerJoin(games, eq(games.id, gamePlayers.gameId))
+    .where(
+      and(
+        eq(games.drawId, drawId),
+        sql`${games.status} in ('IN_PROGRESS', 'NOT_STARTED')`,
+        isNull(gamePlayers.leftAt),
+      ),
+    );
+  const active = new Set(activeRows.map((row) => row.userId));
+
+  const playing = await tx
+    .select({ userId: attendances.userId })
+    .from(attendances)
+    .where(
+      and(
+        eq(attendances.eventId, eventId),
+        eq(attendances.rotationStatus, "PLAYING"),
+        eq(attendances.isOrganizer, false),
+      ),
+    );
+  const orphans = playing
+    .map((row) => row.userId)
+    .filter((userId) => !active.has(userId));
+  await appendPlayersToQueue(tx, eventId, orphans);
+}
 async function createSession(
   tx: Tx,
   eventId: string,
@@ -1574,26 +1634,49 @@ export async function closeCourtAction(
           )
           .orderBy(asc(rotationCourts.number))
           .limit(1);
-        if (!free) throw new AppError("Não há outra quadra livre para receber a partida.");
 
-        await tx
-          .update(games)
-          .set({ court: free.number, updatedAt: new Date() })
-          .where(eq(games.id, current.id));
+        if (free) {
+          await tx
+            .update(games)
+            .set({ court: free.number, updatedAt: new Date() })
+            .where(eq(games.id, current.id));
 
-        await tx
-          .update(rotationCourts)
-          .set({
-            status: court.status,
-            teamAId: court.teamAId,
-            teamBId: court.teamBId,
-            playerAIds: court.playerAIds,
-            playerBIds: court.playerBIds,
-            currentGameId: court.currentGameId,
-            updatedAt: new Date(),
-          })
-          .where(eq(rotationCourts.id, free.id));
+          await tx
+            .update(rotationCourts)
+            .set({
+              status: court.status,
+              teamAId: court.teamAId,
+              teamBId: court.teamBId,
+              playerAIds: court.playerAIds,
+              playerBIds: court.playerBIds,
+              currentGameId: court.currentGameId,
+              updatedAt: new Date(),
+            })
+            .where(eq(rotationCourts.id, free.id));
+        } else {
+          const roster = await tx
+            .select({ userId: gamePlayers.userId })
+            .from(gamePlayers)
+            .where(eq(gamePlayers.gameId, current.id));
+
+          if (current.status === "IN_PROGRESS") {
+            await tx
+              .update(games)
+              .set({ status: "CANCELLED", updatedAt: new Date() })
+              .where(eq(games.id, current.id));
+          } else {
+            await tx.delete(games).where(eq(games.id, current.id));
+          }
+
+          await appendPlayersToQueue(
+            tx,
+            draw.eventId,
+            roster.map((row) => row.userId),
+          );
+        }
       }
+
+      await normalizeOrphanPlayers(tx, draw.id, draw.eventId);
 
       await tx.delete(rotationCourts).where(eq(rotationCourts.id, court.id));
       const remaining = await tx
@@ -1608,6 +1691,110 @@ export async function closeCourtAction(
 
     revalidatePath("/", "layout");
     return success("Quadra fechada.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function mixNextMatchAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = gameIdSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    await db.transaction(async (tx) => {
+      const [initial] = await tx
+        .select({ drawId: games.drawId, eventId: games.eventId })
+        .from(games)
+        .where(eq(games.id, parsed.data.gameId))
+        .limit(1);
+      if (!initial) throw new AppError("Partida não encontrada.");
+
+      await tx.select().from(draws).where(eq(draws.id, initial.drawId)).for("update").limit(1);
+
+      const [game] = await tx
+        .select()
+        .from(games)
+        .where(eq(games.id, parsed.data.gameId))
+        .for("update")
+        .limit(1);
+      if (!game) throw new AppError("Partida não encontrada.");
+      if (game.status !== "NOT_STARTED") {
+        throw new AppError("Só é possível misturar uma partida que ainda não começou.");
+      }
+
+      const players = await tx
+        .select({ userId: gamePlayers.userId, teamId: gamePlayers.teamId })
+        .from(gamePlayers)
+        .where(and(eq(gamePlayers.gameId, game.id), isNull(gamePlayers.leftAt)));
+      const sideA = players.filter((row) => row.teamId === game.teamAId).map((row) => row.userId);
+      const sideB = players.filter((row) => row.teamId === game.teamBId).map((row) => row.userId);
+      if (sideA.length === 0 || sideA.length !== sideB.length) {
+        throw new AppError("Os dois times precisam ter o mesmo número de jogadores.");
+      }
+
+      const shuffled = shuffle([...sideA, ...sideB]);
+      const teamSize = sideA.length;
+      const nextA = shuffled.slice(0, teamSize);
+      const nextB = shuffled.slice(teamSize);
+
+      await tx.delete(gamePlayers).where(eq(gamePlayers.gameId, game.id));
+      await tx.insert(gamePlayers).values([
+        ...nextA.map((userId) => ({ gameId: game.id, teamId: game.teamAId, userId })),
+        ...nextB.map((userId) => ({ gameId: game.id, teamId: game.teamBId, userId })),
+      ]);
+
+      await tx
+        .update(rotationCourts)
+        .set({ playerAIds: nextA, playerBIds: nextB, updatedAt: new Date() })
+        .where(
+          and(
+            eq(rotationCourts.sessionId, initial.drawId),
+            eq(rotationCourts.number, game.court),
+          ),
+        );
+    });
+
+    await recordAudit({
+      actorId: actor.id,
+      action: "racha.mix",
+      entity: "game",
+      entityId: parsed.data.gameId,
+    });
+
+    revalidatePath("/", "layout");
+    return success("Times misturados.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function setQueueModeAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = rachaQueueModeSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    await db
+      .update(draws)
+      .set({ queueMode: parsed.data.mode })
+      .where(eq(draws.id, parsed.data.drawId));
+    revalidatePath("/", "layout");
+    return success(
+      parsed.data.mode === "KEEP_TEAM"
+        ? "Fila mantém o time perdedor junto."
+        : "Fila mistura os jogadores.",
+    );
   } catch (error) {
     return actionFailure(error);
   }

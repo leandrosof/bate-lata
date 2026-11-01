@@ -79,12 +79,12 @@ export function ActionButton({
           {pending ? (pendingLabel ?? "Aguarde...") : children}
         </Button>
         {renderFeedback && state && !state.ok && state.message ? (
-          <p className={cn("mt-1.5 text-xs font-medium text-[#ff9a9a]", feedbackClassName)} role="alert">
+          <p className={cn("feedback-auto-hide mt-1.5 text-xs font-medium text-[#ff9a9a]", feedbackClassName)} role="alert">
             {state.message}
           </p>
         ) : null}
         {renderFeedback && state?.ok && state.message ? (
-          <p className={cn("mt-1.5 break-words text-xs font-medium text-[#86efac]", feedbackClassName)}>
+          <p className={cn("feedback-auto-hide mt-1.5 break-words text-xs font-medium text-[#86efac]", feedbackClassName)}>
             {state.message}
           </p>
         ) : null}

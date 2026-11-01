@@ -10,6 +10,7 @@ import {
   Plus,
   Repeat,
   RotateCcw,
+  Shuffle,
   Trophy,
   UserPlus,
   Users,
@@ -22,8 +23,10 @@ import {
   endRachaAction,
   finalizeMatchAction,
   leaveRachaAction,
+  mixNextMatchAction,
   openCourtAction,
   restartRachaAction,
+  setQueueModeAction,
   startMatchAction,
   startRachaAction,
   substitutePlayerAction,
@@ -274,6 +277,19 @@ export default async function RachaPage({
                   {isAdmin ? (
                     <div className="ml-auto flex flex-wrap gap-1.5">
                       <ActionButton
+                        action={setQueueModeAction}
+                        fields={{
+                          drawId: session.id,
+                          mode: session.queueMode === "KEEP_TEAM" ? "MIX" : "KEEP_TEAM",
+                        }}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        {session.queueMode === "KEEP_TEAM"
+                          ? "Fila: manter time"
+                          : "Fila: misturar"}
+                      </ActionButton>
+                      <ActionButton
                         action={openCourtAction}
                         fields={{ drawId: session.id }}
                         variant="outline"
@@ -423,15 +439,27 @@ export default async function RachaPage({
                     </div>
 
                     {isAdmin && game.status === "NOT_STARTED" ? (
-                      <ActionButton
-                        action={startMatchAction}
-                        fields={{ gameId: game.id }}
-                        variant="primary"
-                        size="lg"
-                        icon={<Play className="h-4 w-4" aria-hidden />}
-                      >
-                        Iniciar partida
-                      </ActionButton>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ActionButton
+                          action={startMatchAction}
+                          fields={{ gameId: game.id }}
+                          variant="primary"
+                          size="lg"
+                          icon={<Play className="h-4 w-4" aria-hidden />}
+                        >
+                          Iniciar partida
+                        </ActionButton>
+                        <ActionButton
+                          action={mixNextMatchAction}
+                          fields={{ gameId: game.id }}
+                          variant="secondary"
+                          size="lg"
+                          confirmMessage="Misturar os jogadores dos dois times e dividir novamente?"
+                          icon={<Shuffle className="h-4 w-4" aria-hidden />}
+                        >
+                          Misturar times
+                        </ActionButton>
+                      </div>
                     ) : null}
 
                     {isAdmin && game.status === "IN_PROGRESS" ? (
