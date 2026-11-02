@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { UserPlus } from "lucide-react";
+import { useActionState, useState } from "react";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { registerAction } from "@/actions/auth";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { Spinner } from "@/components/ui/submit-button";
 
 export function RegisterForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(registerAction, null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -43,15 +45,31 @@ export function RegisterForm({ next }: { next?: string }) {
         <Label htmlFor="password" required>
           Senha
         </Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          placeholder="Mínimo de 8 caracteres"
-          required
-          minLength={8}
-        />
+        <div className="relative">
+          <Input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="new-password"
+            placeholder="Mínimo de 8 caracteres"
+            className="pr-11"
+            required
+            minLength={8}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((visible) => !visible)}
+            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+            title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:bg-ink/5 hover:text-ink"
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" aria-hidden />
+            ) : (
+              <Eye className="h-4 w-4" aria-hidden />
+            )}
+          </button>
+        </div>
         <FieldError>{state?.fieldErrors?.password?.[0]}</FieldError>
         <FieldHint>Use pelo menos 8 caracteres. Senhas são armazenadas com hash seguro.</FieldHint>
       </div>
@@ -60,14 +78,30 @@ export function RegisterForm({ next }: { next?: string }) {
         <Label htmlFor="confirmPassword" required>
           Confirmar senha
         </Label>
-        <Input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          autoComplete="new-password"
-          placeholder="Repita a senha"
-          required
-        />
+        <div className="relative">
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type={showConfirmPassword ? "text" : "password"}
+            autoComplete="new-password"
+            placeholder="Repita a senha"
+            className="pr-11"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword((visible) => !visible)}
+            aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+            title={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:bg-ink/5 hover:text-ink"
+          >
+            {showConfirmPassword ? (
+              <EyeOff className="h-4 w-4" aria-hidden />
+            ) : (
+              <Eye className="h-4 w-4" aria-hidden />
+            )}
+          </button>
+        </div>
         <FieldError>{state?.fieldErrors?.confirmPassword?.[0]}</FieldError>
       </div>
 

@@ -43,7 +43,8 @@ export function ActionButton({
 } & VariantProps<typeof buttonVariants>) {
   const [state, formAction, pending] = useActionState(action, null);
   const { toast } = useToast();
-  const renderFeedback = showFeedback ?? !size?.startsWith("icon");
+  const iconOnly = Boolean(size?.startsWith("icon"));
+  const renderFeedback = showFeedback ?? !iconOnly;
   const formRef = useRef<HTMLFormElement>(null);
   const bypassConfirm = useRef(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -80,8 +81,14 @@ export function ActionButton({
           disabled={pending || disabled}
           title={title}
         >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon}
-          {pending ? (pendingLabel ?? "Aguarde...") : children}
+          {pending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : iconOnly ? (
+            (children ?? icon)
+          ) : (
+            icon
+          )}
+          {iconOnly ? null : pending ? (pendingLabel ?? "Aguarde...") : children}
         </Button>
       </form>
 

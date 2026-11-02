@@ -8,6 +8,7 @@ export function PageHeader({
   eyebrow,
   icon,
   action,
+  actionInline,
   backHref,
   backLabel = "Voltar",
   className,
@@ -17,6 +18,7 @@ export function PageHeader({
   eyebrow?: string;
   icon?: React.ReactNode;
   action?: React.ReactNode;
+  actionInline?: boolean;
   backHref?: string;
   backLabel?: string;
   className?: string;
@@ -43,13 +45,22 @@ export function PageHeader({
             {eyebrow ? (
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
             ) : null}
-            <h1 className="font-display text-3xl font-semibold uppercase leading-none tracking-wide text-ink sm:text-4xl">
-              {title}
-            </h1>
-            {subtitle ? <p className="mt-1.5 text-sm text-muted">{subtitle}</p> : null}
+            {actionInline ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-display text-3xl font-semibold uppercase leading-none tracking-wide text-ink sm:text-4xl">
+                  {title}
+                </h1>
+                {action ? <div className="shrink-0">{action}</div> : null}
+              </div>
+            ) : (
+              <h1 className="font-display text-3xl font-semibold uppercase leading-none tracking-wide text-ink sm:text-4xl">
+                {title}
+              </h1>
+            )}
+            {subtitle ? <p className="mt-1.5 w-full text-sm text-muted">{subtitle}</p> : null}
           </div>
         </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+        {action && !actionInline ? <div className="shrink-0">{action}</div> : null}
       </div>
     </header>
   );

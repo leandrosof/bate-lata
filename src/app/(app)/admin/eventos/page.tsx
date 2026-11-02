@@ -252,15 +252,16 @@ export default async function AdminEventsPage({
                       >
                         Cancelar
                       </ActionButton>
-                      <ActionButton
-                        action={setEventStatusAction}
-                        fields={{ eventId: event.id, status: "SCHEDULED" }}
-                        variant="secondary"
-                        size="sm"
-                        disabled={event.status === "SCHEDULED"}
-                      >
-                        Reabrir
-                      </ActionButton>
+                      {event.status === "CANCELLED" || event.status === "FINISHED" ? (
+                        <ActionButton
+                          action={setEventStatusAction}
+                          fields={{ eventId: event.id, status: "SCHEDULED" }}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Reabrir
+                        </ActionButton>
+                      ) : null}
                       <ActionButton
                         action={setEventStatusAction}
                         fields={{ eventId: event.id, status: "FINISHED" }}

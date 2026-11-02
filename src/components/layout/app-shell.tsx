@@ -25,7 +25,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface/90 backdrop-blur-md lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-line bg-surface/90 backdrop-blur-md lg:flex">
         <div className="px-5 py-6">
           <Brand siteName={settings.siteName} tagline={settings.tagline} logoUrl={logoUrl} />
         </div>
@@ -59,7 +59,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur-md lg:hidden">
           <div className="flex h-16 items-center justify-between gap-3 px-4">
             <Brand
@@ -87,7 +87,7 @@ export function AppShell({
 
         <OfflineBanner />
 
-        <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:pb-14 lg:pt-8">
+        <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:pb-14 lg:pt-8">
           {children}
         </main>
 

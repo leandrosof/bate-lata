@@ -87,16 +87,17 @@ export default async function HomePage() {
       {liveGame ? (
         <Card className="border-[rgba(240,82,82,0.35)]">
           <CardHeader className="items-center">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <GameStatusBadge status="IN_PROGRESS" />
-              <p className="truncate text-sm text-muted">
-                Partida em andamento · <span className="text-ink">{liveGame.eventTitle}</span>
+              <p className="min-w-0 text-sm leading-tight text-muted">
+                <span className="block text-[10px] uppercase tracking-wider">Partida em andamento</span>
+                <span className="block truncate font-semibold text-ink">{liveGame.eventTitle}</span>
               </p>
             </div>
             <AutoRefresh intervalMs={15000} />
             <Link
               href={`/racha?evento=${liveGame.eventId}`}
-              className="text-xs font-semibold text-brand hover:text-ink"
+              className="shrink-0 whitespace-nowrap text-xs font-semibold text-brand hover:text-ink"
             >
               Abrir racha
             </Link>
@@ -142,7 +143,7 @@ export default async function HomePage() {
                 <div className="min-w-0">
                   <Badge tone={nextEvent.active ? "live" : "brand"} className="mb-1.5">
                     {nextEvent.active
-                      ? "Racha em andamento"
+                      ? "Em andamento"
                       : countdownLabel(nextEvent.startsAt, settings.timezone)}
                   </Badge>
                   <h2 className="font-display text-2xl font-semibold uppercase leading-tight tracking-wide text-ink">

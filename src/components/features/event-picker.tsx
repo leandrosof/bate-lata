@@ -17,7 +17,7 @@ export function EventPicker({
 
   return (
     <LinkTabs
-      className="mb-4"
+      className="mb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       items={events.map((event) => ({
         href: `${basePath}?evento=${event.id}`,
         label: `${formatDateShort(event.startsAt, timeZone)} · ${formatTime(event.startsAt, timeZone)}`,

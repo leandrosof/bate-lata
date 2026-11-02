@@ -13,11 +13,13 @@ export function TeamCard({
   teamSize,
   className,
   highlight,
+  compact,
 }: {
   team: TeamCardTeam;
   teamSize?: number;
   className?: string;
   highlight?: boolean;
+  compact?: boolean;
 }) {
   const visual = teamVisualByColor(team.color);
   const foreground = readableTextColor(visual.hex);
@@ -40,7 +42,7 @@ export function TeamCard({
           color: visual.hex,
         }}
       />
-      <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
+      <div className={cn("flex items-center justify-between gap-2", compact ? "px-2.5 pt-2.5" : "px-3.5 pt-3")}>
         <div className="flex min-w-0 items-center gap-2">
           <span
             className="h-3 w-3 shrink-0 rounded-full"
@@ -49,7 +51,12 @@ export function TeamCard({
               boxShadow: `0 0 0 1px ${foreground}55, 0 0 8px ${visual.hex}`,
             }}
           />
-          <p className="truncate font-display text-base font-bold uppercase tracking-wider text-ink">
+          <p
+            className={cn(
+              "truncate font-display font-bold uppercase tracking-wider text-ink",
+              compact ? "text-sm" : "text-base",
+            )}
+          >
             {team.name}
           </p>
         </div>
@@ -61,11 +68,14 @@ export function TeamCard({
           {teamSize ? `/${teamSize}` : ""}
         </span>
       </div>
-      <ol className="space-y-1.5 px-3 py-3">
+      <ol className={cn(compact ? "space-y-1 px-2 py-2" : "space-y-1.5 px-3 py-3")}>
         {team.players.map((player, index) => (
           <li
             key={player.userId}
-            className="flex items-center gap-2.5 rounded-xl bg-ink/[0.02] px-2.5 py-1.5 text-sm font-medium text-ink transition hover:bg-ink/[0.06]"
+            className={cn(
+              "flex items-center gap-2 rounded-xl bg-ink/[0.02] font-medium text-ink transition hover:bg-ink/[0.06]",
+              compact ? "px-1.5 py-1.5 text-sm" : "gap-2.5 px-2.5 py-1.5 text-sm",
+            )}
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-ink/5 text-[11px] font-bold text-muted">
               {index + 1}
@@ -81,22 +91,33 @@ export function TeamCard({
   );
 }
 
-export function TeamPill({ name, color }: { name: string; color: string }) {
+export function TeamPill({
+  name,
+  color,
+  className,
+}: {
+  name: string;
+  color: string;
+  className?: string;
+}) {
   const visual = teamVisualByColor(color);
   const ring = readableTextColor(visual.hex);
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold text-ink"
+      className={cn(
+        "inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold text-ink",
+        className,
+      )}
       style={{ borderColor: `${visual.hex}66`, backgroundColor: visual.soft }}
     >
       <span
-        className="h-1.5 w-1.5 rounded-full"
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
         style={{
           backgroundColor: visual.hex,
           boxShadow: `0 0 0 1px ${ring}66`,
         }}
       />
-      {name}
+      <span className="truncate">{name}</span>
     </span>
   );
 }

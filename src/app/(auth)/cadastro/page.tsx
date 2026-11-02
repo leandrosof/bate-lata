@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/forms/register-form";
-import { Alert } from "@/components/ui/alert";
 import { getSessionUser } from "@/lib/session";
 import { safeNextPath } from "@/lib/utils";
 
@@ -26,11 +25,6 @@ export default async function RegisterPage({
       <p className="mt-2 text-sm leading-relaxed text-muted">
         Cada jogador tem a própria conta para confirmar presença e acompanhar suas estatísticas.
       </p>
-
-      <Alert tone="info" className="mt-4">
-        O <strong>primeiro cadastro</strong> do grupo recebe acesso de administrador. Depois, o admin pode
-        promover outros jogadores no painel.
-      </Alert>
 
       <div className="mt-5">
         <RegisterForm next={next} />

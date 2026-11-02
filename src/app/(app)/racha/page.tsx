@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Flag,
+  LayoutGrid,
   ListOrdered,
   LogIn,
   LogOut,
@@ -19,7 +20,6 @@ import { adjustScoreAction, setScoreAction } from "@/actions/games";
 import {
   addToRachaAction,
   checkInRachaAction,
-  closeCourtAction,
   endRachaAction,
   finalizeMatchAction,
   leaveRachaAction,
@@ -32,6 +32,7 @@ import {
   undoRachaAction,
 } from "@/actions/racha";
 import { AutoRefresh } from "@/components/features/auto-refresh";
+import { CloseCourtDialog } from "@/components/features/close-court-dialog";
 import { EventPicker } from "@/components/features/event-picker";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { QueueSwapDialog } from "@/components/features/queue-swap-dialog";
@@ -135,6 +136,7 @@ export default async function RachaPage({
         subtitle="Lista única, times automáticos, placar e próximo jogo sem escolher time."
         icon={<Repeat className="h-5 w-5" />}
         action={session ? <DrawStatusBadge status={session.status} /> : undefined}
+        actionInline
       />
 
       <EventPicker events={upcoming} selectedId={selected?.id} basePath="/racha" timeZone={settings.timezone} />
@@ -280,8 +282,38 @@ export default async function RachaPage({
               ) : null}
 
               <Card data-testid="racha-courts">
-                <CardBody className="flex flex-wrap items-center gap-2">
-                  <div className="flex flex-wrap gap-1.5">
+                <CardHeader className="flex-wrap items-center gap-2 pb-0">
+                  <div className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4 text-muted" aria-hidden />
+                    <CardTitle className="text-base">Quadras</CardTitle>
+                  </div>
+                  {isAdmin ? (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <ActionButton
+                        action={openCourtAction}
+                        fields={{ drawId: session.id }}
+                        variant="outline"
+                        size="sm"
+                        confirmTitle="Nova quadra"
+                        confirmLabel="Abrir quadra"
+                        confirmMessage="Deseja realmente abrir uma nova quadra?"
+                        icon={<Plus className="h-3.5 w-3.5" aria-hidden />}
+                      >
+                        Abrir quadra
+                      </ActionButton>
+                      <CloseCourtDialog
+                        drawId={session.id}
+                        courts={courts.map((court) => ({
+                          number: court.number,
+                          inUse: Boolean(court.game),
+                        }))}
+                        defaultCourt={selectedCourt?.number}
+                      />
+                    </div>
+                  ) : null}
+                </CardHeader>
+                <CardBody className="pt-3">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {courts.map((court) => (
                       <Link
                         key={court.id}
@@ -290,11 +322,12 @@ export default async function RachaPage({
                           buttonVariants({
                             variant:
                               selectedCourt?.number === court.number ? "primary" : "secondary",
-                            size: "sm",
+                            size: "md",
                           }),
+                          "w-full justify-between px-2.5",
                         )}
                       >
-                        Quadra {court.number}
+                        <span className="truncate">Quadra {court.number}</span>
                         <span className="text-[10px] uppercase tracking-wider opacity-70">
                           {court.game
                             ? court.game.status === "IN_PROGRESS"
@@ -305,29 +338,6 @@ export default async function RachaPage({
                       </Link>
                     ))}
                   </div>
-                  {isAdmin ? (
-                    <div className="ml-auto flex flex-wrap gap-1.5">
-                      <ActionButton
-                        action={openCourtAction}
-                        fields={{ drawId: session.id }}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Abrir quadra
-                      </ActionButton>
-                      {selectedCourt ? (
-                        <ActionButton
-                          action={closeCourtAction}
-                          fields={{ drawId: session.id, court: selectedCourt.number }}
-                          variant="ghost"
-                          size="sm"
-                          confirmMessage={`Fechar a quadra ${selectedCourt.number}? Se houver jogo, ele será cancelado e os jogadores voltam para a fila de espera.`}
-                        >
-                          Fechar quadra
-                        </ActionButton>
-                      ) : null}
-                    </div>
-                  ) : null}
                 </CardBody>
               </Card>
 
@@ -347,113 +357,113 @@ export default async function RachaPage({
                     </Badge>
                   </CardHeader>
                   <CardBody className="space-y-3 pt-2">
-                    <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                      {/* Time A */}
-                      <div className="flex flex-col gap-3">
-                        <TeamCard
-                          team={{
-                            name: game.teamAName,
-                            color: game.teamAColor,
-                            players: game.teamAPlayers,
-                          }}
-                          teamSize={teamSize}
-                          highlight
-                        />
-                        <div className="flex items-center justify-between rounded-2xl border border-line bg-surface-2/60 px-4 py-2.5 backdrop-blur-sm sm:justify-center sm:gap-4">
-                          <span className="text-xs font-bold uppercase tracking-wider text-muted sm:hidden">
-                            Placar
-                          </span>
-                          <div className="flex items-center gap-3">
+                    <div className="rounded-2xl border border-line bg-surface-2/60 p-3 backdrop-blur-sm sm:p-4">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex min-w-0 justify-end">
+                            <TeamPill name={game.teamAName} color={game.teamAColor} className="max-w-full" />
+                          </div>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {isAdmin && game.status === "IN_PROGRESS" ? (
+                              <ActionButton
+                                action={adjustScoreAction}
+                                fields={{ gameId: game.id, side: "A", delta: -1 }}
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-xl text-muted hover:bg-ink/10 hover:text-ink"
+                                title={`-1 ${game.teamAName}`}
+                              >
+                                <Minus className="h-4 w-4" aria-hidden />
+                              </ActionButton>
+                            ) : null}
                             <p
-                              className="font-display text-4xl font-extrabold tabular-nums tracking-tight text-ink sm:text-5xl"
+                              className="min-w-[2.5rem] text-center font-display text-4xl font-extrabold tabular-nums tracking-tight text-ink sm:text-5xl"
                               data-testid="racha-score-a"
                             >
                               {game.scoreA}
                             </p>
                             {isAdmin && game.status === "IN_PROGRESS" ? (
-                              <div className="flex items-center gap-1.5">
-                                <ActionButton
-                                  action={adjustScoreAction}
-                                  fields={{ gameId: game.id, side: "A", delta: 1 }}
-                                  variant="primary"
-                                  size="icon"
-                                  className="h-10 w-10 rounded-xl shadow-md transition active:scale-95"
-                                  title={`+1 ${game.teamAName}`}
-                                >
-                                  <Plus className="h-5 w-5" aria-hidden />
-                                </ActionButton>
-                                <ActionButton
-                                  action={adjustScoreAction}
-                                  fields={{ gameId: game.id, side: "A", delta: -1 }}
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 rounded-xl text-muted hover:bg-ink/10 hover:text-ink"
-                                  title={`-1 ${game.teamAName}`}
-                                >
-                                  <Minus className="h-4 w-4" aria-hidden />
-                                </ActionButton>
-                              </div>
+                              <ActionButton
+                                action={adjustScoreAction}
+                                fields={{ gameId: game.id, side: "A", delta: 1 }}
+                                variant="primary"
+                                size="icon"
+                                className="h-10 w-10 rounded-xl shadow-md transition active:scale-95"
+                                title={`+1 ${game.teamAName}`}
+                              >
+                                <Plus className="h-5 w-5" aria-hidden />
+                              </ActionButton>
                             ) : null}
                           </div>
                         </div>
-                      </div>
 
-                      {/* VS Divider */}
-                      <div className="flex items-center justify-center py-1 md:flex-col md:py-0">
                         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-ink/5 font-display text-xs font-bold uppercase tracking-widest text-muted/80 backdrop-blur-sm">
-                          VS
+                          x
                         </span>
-                      </div>
 
-                      {/* Time B */}
-                      <div className="flex flex-col gap-3">
-                        <TeamCard
-                          team={{
-                            name: game.teamBName,
-                            color: game.teamBColor,
-                            players: game.teamBPlayers,
-                          }}
-                          teamSize={teamSize}
-                          highlight
-                        />
-                        <div className="flex items-center justify-between rounded-2xl border border-line bg-surface-2/60 px-4 py-2.5 backdrop-blur-sm sm:justify-center sm:gap-4">
-                          <span className="text-xs font-bold uppercase tracking-wider text-muted sm:hidden">
-                            Placar
-                          </span>
-                          <div className="flex items-center gap-3">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex min-w-0 justify-start">
+                            <TeamPill name={game.teamBName} color={game.teamBColor} className="max-w-full" />
+                          </div>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {isAdmin && game.status === "IN_PROGRESS" ? (
+                              <ActionButton
+                                action={adjustScoreAction}
+                                fields={{ gameId: game.id, side: "B", delta: -1 }}
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-xl text-muted hover:bg-ink/10 hover:text-ink"
+                                title={`-1 ${game.teamBName}`}
+                              >
+                                <Minus className="h-4 w-4" aria-hidden />
+                              </ActionButton>
+                            ) : null}
                             <p
-                              className="font-display text-4xl font-extrabold tabular-nums tracking-tight text-ink sm:text-5xl"
+                              className="min-w-[2.5rem] text-center font-display text-4xl font-extrabold tabular-nums tracking-tight text-ink sm:text-5xl"
                               data-testid="racha-score-b"
                             >
                               {game.scoreB}
                             </p>
                             {isAdmin && game.status === "IN_PROGRESS" ? (
-                              <div className="flex items-center gap-1.5">
-                                <ActionButton
-                                  action={adjustScoreAction}
-                                  fields={{ gameId: game.id, side: "B", delta: 1 }}
-                                  variant="primary"
-                                  size="icon"
-                                  className="h-10 w-10 rounded-xl shadow-md transition active:scale-95"
-                                  title={`+1 ${game.teamBName}`}
-                                >
-                                  <Plus className="h-5 w-5" aria-hidden />
-                                </ActionButton>
-                                <ActionButton
-                                  action={adjustScoreAction}
-                                  fields={{ gameId: game.id, side: "B", delta: -1 }}
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 rounded-xl text-muted hover:bg-ink/10 hover:text-ink"
-                                  title={`-1 ${game.teamBName}`}
-                                >
-                                  <Minus className="h-4 w-4" aria-hidden />
-                                </ActionButton>
-                              </div>
+                              <ActionButton
+                                action={adjustScoreAction}
+                                fields={{ gameId: game.id, side: "B", delta: 1 }}
+                                variant="primary"
+                                size="icon"
+                                className="h-10 w-10 rounded-xl shadow-md transition active:scale-95"
+                                title={`+1 ${game.teamBName}`}
+                              >
+                                <Plus className="h-5 w-5" aria-hidden />
+                              </ActionButton>
                             ) : null}
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <TeamCard
+                        compact
+                        className="min-w-0"
+                        team={{
+                          name: game.teamAName,
+                          color: game.teamAColor,
+                          players: game.teamAPlayers,
+                        }}
+                        teamSize={teamSize}
+                        highlight
+                      />
+                      <TeamCard
+                        compact
+                        className="min-w-0"
+                        team={{
+                          name: game.teamBName,
+                          color: game.teamBColor,
+                          players: game.teamBPlayers,
+                        }}
+                        teamSize={teamSize}
+                        highlight
+                      />
                     </div>
 
                     {isAdmin && game.status === "NOT_STARTED" ? (
@@ -481,19 +491,18 @@ export default async function RachaPage({
                     ) : null}
 
                     {isAdmin && game.status === "IN_PROGRESS" ? (
-                      <div className="flex flex-wrap items-center gap-3 pt-2">
-                        <ActionButton
-                          action={finalizeMatchAction}
-                          fields={{ gameId: game.id }}
-                          variant="success"
-                          size="lg"
-                          className="flex-1 justify-center rounded-xl py-3 shadow-[0_6px_16px_-10px_rgba(16,185,129,0.3)] transition active:scale-[0.99]"
-                          confirmMessage="Finalizar a partida e rodar a fila automaticamente?"
-                          icon={<Flag className="h-4 w-4" aria-hidden />}
-                        >
-                          Finalizar partida
-                        </ActionButton>
-                      </div>
+                      <ActionButton
+                        action={finalizeMatchAction}
+                        fields={{ gameId: game.id }}
+                        variant="success"
+                        size="lg"
+                        formClassName="w-full"
+                        className="w-full justify-center rounded-xl py-3 font-bold shadow-[0_6px_16px_-10px_rgba(16,185,129,0.3)] transition active:scale-[0.99]"
+                        confirmMessage="Finalizar a partida e rodar a fila automaticamente?"
+                        icon={<Flag className="h-4 w-4" aria-hidden />}
+                      >
+                        Finalizar partida
+                      </ActionButton>
                     ) : null}
 
                     {isAdmin && game.status === "IN_PROGRESS" ? (
@@ -662,15 +671,17 @@ export default async function RachaPage({
                 </CardBody>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
+              <Disclosure
+                title={
+                  <span className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted" aria-hidden />
-                    <CardTitle>Lista do racha</CardTitle>
-                  </div>
-                  <Badge>{roster.confirmed.length} confirmados</Badge>
-                </CardHeader>
-                <CardBody className="space-y-2 pt-2">
+                    Lista do racha
+                  </span>
+                }
+                subtitle={`${roster.confirmed.length} confirmados`}
+                defaultOpen={false}
+              >
+                <div className="space-y-2">
                   {isAdmin ? (
                     <OrganizerToggle
                       eventId={selected.id}
@@ -764,15 +775,20 @@ export default async function RachaPage({
                       </ul>
                     </Disclosure>
                   ) : null}
-                </CardBody>
-              </Card>
+                </div>
+              </Disclosure>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Histórico do racha</CardTitle>
-                  <Badge>{view.history.length}</Badge>
-                </CardHeader>
-                <CardBody className="space-y-2 pt-2">
+              <Disclosure
+                title={
+                  <span className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-muted" aria-hidden />
+                    Histórico do racha
+                  </span>
+                }
+                subtitle={`${view.history.length} ${view.history.length === 1 ? "resultado" : "resultados"}`}
+                defaultOpen={false}
+              >
+                <div className="space-y-2">
                   {view.history.length === 0 ? (
                     <p className="text-xs text-muted">Nenhum resultado ainda.</p>
                   ) : (
@@ -800,11 +816,11 @@ export default async function RachaPage({
                       ))}
                     </ol>
                   )}
-                </CardBody>
-              </Card>
+                </div>
+              </Disclosure>
 
               {isAdmin ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-3">
                   {canUndoSelected ? (
                     <ActionButton
                       action={undoRachaAction}
@@ -817,25 +833,32 @@ export default async function RachaPage({
                       Desfazer último
                     </ActionButton>
                   ) : null}
-                  <ActionButton
-                    action={restartRachaAction}
-                    fields={{ drawId: session.id }}
-                    variant="ghost"
-                    size="sm"
-                    confirmMessage="Reiniciar o racha com a lista atual? O histórico anterior continua salvo."
-                    icon={<Repeat className="h-3.5 w-3.5" aria-hidden />}
-                  >
-                    Reiniciar racha
-                  </ActionButton>
-                  <ActionButton
-                    action={endRachaAction}
-                    fields={{ drawId: session.id }}
-                    variant="ghost"
-                    size="sm"
-                    confirmMessage="Encerrar o racha? A partida atual precisa estar finalizada."
-                  >
-                    Encerrar racha
-                  </ActionButton>
+                  <div className="grid grid-cols-2 gap-3">
+                    <ActionButton
+                      action={restartRachaAction}
+                      fields={{ drawId: session.id }}
+                      variant="secondary"
+                      size="md"
+                      formClassName="w-full"
+                      className="w-full justify-center font-bold"
+                      confirmMessage="Reiniciar o racha com a lista atual? O histórico anterior continua salvo."
+                      icon={<Repeat className="h-3.5 w-3.5" aria-hidden />}
+                    >
+                      Reiniciar racha
+                    </ActionButton>
+                    <ActionButton
+                      action={endRachaAction}
+                      fields={{ drawId: session.id }}
+                      variant="danger"
+                      size="md"
+                      formClassName="w-full"
+                      className="w-full justify-center border-red-200/80 bg-red-50 font-bold text-red-600 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/60"
+                      confirmMessage="Encerrar o racha? A partida atual precisa estar finalizada."
+                      icon={<Flag className="h-3.5 w-3.5" aria-hidden />}
+                    >
+                      Encerrar racha
+                    </ActionButton>
+                  </div>
                 </div>
               ) : null}
             </>
