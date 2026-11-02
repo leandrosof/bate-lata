@@ -100,6 +100,47 @@ export default async function AdminSettingsPage() {
               </div>
             </div>
 
+            <div className="rounded-xl border border-line/70 p-3">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-ink">Pagamento via Pix</p>
+                <p className="mt-0.5 text-[11px] text-muted">
+                  Usado apenas nos eventos com valor. O comprovante é conferido pelo administrador fora do site.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="pixKey">Chave Pix</Label>
+                  <Input
+                    id="pixKey"
+                    name="pixKey"
+                    defaultValue={settings.pixKey ?? ""}
+                    maxLength={200}
+                    placeholder="CPF, telefone, e-mail ou chave aleatória"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pixRecipientName">Nome do recebedor</Label>
+                  <Input
+                    id="pixRecipientName"
+                    name="pixRecipientName"
+                    defaultValue={settings.pixRecipientName ?? ""}
+                    maxLength={120}
+                    placeholder="Nome que aparece no Pix"
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <Label htmlFor="pixInstructions">Instruções de pagamento</Label>
+                <Textarea
+                  id="pixInstructions"
+                  name="pixInstructions"
+                  defaultValue={settings.pixInstructions ?? ""}
+                  maxLength={500}
+                  placeholder="Ex.: envie o comprovante no WhatsApp após o Pix"
+                />
+              </div>
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="pointsWin" required>

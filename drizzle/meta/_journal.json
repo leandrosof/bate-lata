@@ -64,6 +64,27 @@
       "when": 1793638277747,
       "tag": "0008_amazing_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793648482141,
+      "tag": "0009_wealthy_proemial_gods",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793653183297,
+      "tag": "0010_reflective_manta",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793656226761,
+      "tag": "0011_slim_mordo",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { cancelAttendanceAction, confirmAttendanceAction } from "@/actions/attendance";
+import { PaymentProofUpload } from "@/components/features/payment-proof-upload";
 import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 
@@ -9,15 +10,21 @@ export function AttendanceControls({
   isFull,
   allowWaitlist,
   isOrganizer,
+  requiresPayment = false,
+  attendanceId,
+  autoPaymentReview = false,
   size = "lg",
   block = true,
 }: {
   eventId: string;
-  status: "CONFIRMED" | "WAITLIST" | "CANCELLED" | null;
+  status: "PENDING_PAYMENT" | "CONFIRMED" | "WAITLIST" | "CANCELLED" | null;
   waitlistPosition?: number | null;
   isFull: boolean;
   allowWaitlist: boolean;
   isOrganizer?: boolean;
+  requiresPayment?: boolean;
+  attendanceId?: string | null;
+  autoPaymentReview?: boolean;
   size?: "sm" | "md" | "lg";
   block?: boolean;
 }) {
@@ -42,6 +49,32 @@ export function AttendanceControls({
       >
         Cancelar presença
       </ActionButton>
+    );
+  }
+
+  if (status === "PENDING_PAYMENT") {
+    return (
+      <div className="space-y-2">
+        {autoPaymentReview && attendanceId ? (
+          <PaymentProofUpload attendanceId={attendanceId} />
+        ) : null}
+        <ActionButton
+          action={cancelAttendanceAction}
+          fields={{ eventId }}
+          variant="secondary"
+          size={size}
+          block={block}
+          confirmMessage="Deseja cancelar sua solicitação de vaga?"
+          pendingLabel="Cancelando..."
+        >
+          Cancelar solicitação
+        </ActionButton>
+        <p className="text-center text-xs text-warning">
+          {autoPaymentReview
+            ? "Vaga reservada. Envie o comprovante Pix ou aguarde a análise do administrador."
+            : "Vaga reservada. Aguardando o administrador conferir e aprovar o pagamento."}
+        </p>
+      </div>
     );
   }
 
@@ -84,7 +117,11 @@ export function AttendanceControls({
       pendingLabel="Confirmando..."
       icon={<span aria-hidden className="text-base leading-none">+</span>}
     >
-      {isFull ? "Entrar na lista de espera" : "Confirmar presença"}
+      {isFull
+        ? "Entrar na lista de espera"
+        : requiresPayment
+          ? "Solicitar vaga (Pix)"
+          : "Confirmar presença"}
     </ActionButton>
   );
 }

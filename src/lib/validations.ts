@@ -92,12 +92,23 @@ export const eventSchema = z.object({
     .int("Use um número inteiro.")
     .min(MIN_PLAYERS_LIMIT, `Mínimo de ${MIN_PLAYERS_LIMIT} jogadores.`)
     .max(MAX_PLAYERS_LIMIT, `Máximo de ${MAX_PLAYERS_LIMIT} jogadores.`),
+  paymentMode: z.enum(["FREE", "PAID"]).default("FREE"),
+  price: z.coerce.number().min(0, "O valor não pode ser negativo.").max(10000, "Valor muito alto.").optional().default(0),
+  autoPaymentReview: formBoolean.optional().default(false),
   notes: z.string().trim().max(1000, "Observações muito longas.").optional(),
   rotationRule: z
     .enum(["HYBRID", "WINNER_STAYS", "ROTATE_ALL", "ARRIVAL_QUEUE"])
     .optional()
     .default("HYBRID"),
   maxStreak: z.coerce.number().int().min(1).max(10).optional().default(2),
+}).superRefine((data, ctx) => {
+  if (data.paymentMode === "PAID" && (!data.price || data.price <= 0)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["price"],
+      message: "Informe o valor do evento pago.",
+    });
+  }
 });
 
 export const eventIdSchema = z.object({ eventId: uuidSchema });
@@ -210,6 +221,9 @@ export const settingsSchema = z.object({
   aboutText: z.string().trim().max(2000, "Texto muito longo.").optional(),
   rulesText: z.string().trim().max(2000, "Texto muito longo.").optional(),
   contactText: z.string().trim().max(500, "Texto muito longo.").optional(),
+  pixKey: z.string().trim().max(200, "Chave Pix muito longa.").optional(),
+  pixRecipientName: z.string().trim().max(120, "Nome do recebedor muito longo.").optional(),
+  pixInstructions: z.string().trim().max(500, "Instruções muito longas.").optional(),
   siteName: z.string().trim().min(2, "Informe o nome do site.").max(60, "Nome muito longo."),
   tagline: z.string().trim().max(80, "Slogan muito longo.").optional(),
   logoUrl: z

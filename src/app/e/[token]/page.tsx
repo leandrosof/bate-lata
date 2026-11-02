@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, MapPin, Trophy, Users } from "lucide-react";
 import { AttendanceControls } from "@/components/features/attendance-controls";
+import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { PublicAuthMenu } from "@/components/features/public-auth-menu";
 import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
 import { ShareEventButton } from "@/components/features/share-event-button";
@@ -16,6 +17,7 @@ import { listEventGames, listRecentFinishedGames } from "@/db/queries/games";
 import { getEventByPublicToken, getEventRoster, listUpcomingEvents } from "@/db/queries/events";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
+import { formatCents } from "@/lib/money";
 import { surfaceCover, surfaceLabel } from "@/lib/surface";
 import { formatDateLong, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,7 @@ export default async function PublicEventPage({
   const roster = await getEventRoster(event.id);
   const mine =
     roster.confirmed.find((row) => row.userId === user?.id) ??
+    roster.pendingPayment.find((row) => row.userId === user?.id) ??
     roster.organizers.find((row) => row.userId === user?.id) ??
     roster.waitlist.find((row) => row.userId === user?.id) ??
     null;
@@ -51,7 +54,7 @@ export default async function PublicEventPage({
     ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
     : settings.logoUrl;
   const isPast = event.status === "FINISHED" || event.status === "CANCELLED";
-  const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
+  const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
   const full = remaining === 0;
   const confirmedNames = [...roster.confirmed, ...roster.organizers].map((row) => row.name);
   const confirmedOnlyNames = roster.confirmed.map((row) => row.name);
@@ -134,6 +137,29 @@ export default async function PublicEventPage({
                 <SurfaceBadge surface={event.surface} onDark />
               </div>
             ) : null}
+            <div className="mt-2 flex justify-center">
+              <EventPriceBadge paymentMode={event.paymentMode} priceCents={event.priceCents} onDark />
+            </div>
+            {event.paymentMode === "PAID" ? (
+              <div className="mx-auto mt-4 max-w-md rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm text-white/85">
+                <p className="font-semibold text-white">
+                  {event.priceCents && event.priceCents > 0
+                    ? `Valor: ${formatCents(event.priceCents)} por jogador`
+                    : "Valor ainda não configurado. Fale com o administrador."}
+                </p>
+                {event.priceCents && event.priceCents > 0 ? (
+                  <>
+                    <p className="mt-0.5 text-xs">
+                      Pix: <span className="font-medium text-white">{settings.pixKey ?? "não configurado"}</span>
+                      {settings.pixRecipientName ? ` · ${settings.pixRecipientName}` : ""}
+                    </p>
+                    {settings.pixInstructions ? (
+                      <p className="mt-1 whitespace-pre-line text-xs text-white/70">{settings.pixInstructions}</p>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               {!isPast ? (
                 user ? (
@@ -144,6 +170,9 @@ export default async function PublicEventPage({
                     isFull={full}
                     allowWaitlist={settings.allowWaitlist}
                     isOrganizer={Boolean(mine?.isOrganizer)}
+                    attendanceId={mine?.attendanceId}
+                    autoPaymentReview={event.autoPaymentReview}
+                    requiresPayment={event.paymentMode === "PAID"}
                     size="lg"
                     block={false}
                   />
@@ -175,13 +204,19 @@ export default async function PublicEventPage({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <Card>
             <CardBody className="text-center">
               <p className="font-display text-3xl font-bold text-ink">
                 {event.confirmedCount}/{event.maxPlayers}
               </p>
               <p className="text-[11px] uppercase tracking-wider text-muted">confirmados</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <p className="font-display text-3xl font-bold text-ink">{roster.pendingPayment.length}</p>
+              <p className="text-[11px] uppercase tracking-wider text-muted">aguardando Pix</p>
             </CardBody>
           </Card>
           <Card>

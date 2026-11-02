@@ -10,7 +10,13 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 export const userRole = pgEnum("user_role", ["ADMIN", "PLAYER"]);
 export const eventStatus = pgEnum("event_status", ["SCHEDULED", "CANCELLED", "FINISHED"]);
 export const eventSurface = pgEnum("event_surface", ["SAND", "COURT"]);
-export const attendanceStatus = pgEnum("attendance_status", ["CONFIRMED", "WAITLIST", "CANCELLED"]);
+export const eventPaymentMode = pgEnum("event_payment_mode", ["FREE", "PAID"]);
+export const attendanceStatus = pgEnum("attendance_status", [
+  "PENDING_PAYMENT",
+  "CONFIRMED",
+  "WAITLIST",
+  "CANCELLED",
+]);
 export const drawStatus = pgEnum("draw_status", ["DRAFT", "IN_PROGRESS", "FINISHED", "CANCELLED"]);
 export const gameStatus = pgEnum("game_status", ["NOT_STARTED", "IN_PROGRESS", "FINISHED", "CANCELLED"]);
 export const teamSide = pgEnum("team_side", ["A", "B"]);
@@ -31,6 +37,12 @@ export const gamePlayerRole = pgEnum("game_player_role", ["STARTER", "SUB"]);
 export const gameSource = pgEnum("game_source", ["MANUAL", "TEAM_ROTATION", "RACHA"]);
 export const queueMode = pgEnum("queue_mode", ["KEEP_TEAM", "MIX"]);
 export const courtStatus = pgEnum("court_status", ["EMPTY", "WAITING", "PLAYING"]);
+export const paymentProofStatus = pgEnum("payment_proof_status", [
+  "PROCESSING",
+  "NEEDS_REVIEW",
+  "APPROVED",
+  "REJECTED",
+]);
 
 export const users = pgTable(
   "users",
@@ -134,6 +146,9 @@ export const events = pgTable(
     address: text("address"),
     surface: eventSurface("surface"),
     maxPlayers: integer("max_players").notNull(),
+    paymentMode: eventPaymentMode("payment_mode").notNull().default("FREE"),
+    priceCents: integer("price_cents"),
+    autoPaymentReview: boolean("auto_payment_review").notNull().default(false),
     notes: text("notes"),
     status: eventStatus("status").notNull().default("SCHEDULED"),
     rotationRule: rotationRule("rotation_rule").notNull().default("HYBRID"),
@@ -171,6 +186,11 @@ export const attendances = pgTable(
     leftAt: timestamp("left_at", { withTimezone: true }),
     isOrganizer: boolean("is_organizer").notNull().default(false),
     queueTeamId: uuid("queue_team_id"),
+    paymentApprovedAt: timestamp("payment_approved_at", { withTimezone: true }),
+    paymentApprovedById: uuid("payment_approved_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    paymentReference: text("payment_reference"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -178,6 +198,31 @@ export const attendances = pgTable(
     uniqueIndex("attendances_event_user_unique").on(table.eventId, table.userId),
     index("attendances_event_status_idx").on(table.eventId, table.status),
   ],
+);
+
+export const paymentProofs = pgTable(
+  "payment_proofs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attendanceId: uuid("attendance_id")
+      .notNull()
+      .unique()
+      .references(() => attendances.id, { onDelete: "cascade" }),
+    e2eId: text("e2e_id"),
+    amountCents: integer("amount_cents"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    recipientName: text("recipient_name"),
+    confidence: integer("confidence"),
+    provider: text("provider").notNull().default("tesseract"),
+    status: paymentProofStatus("status").notNull().default("PROCESSING"),
+    reviewReasons: jsonb("review_reasons").$type<string[]>(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("payment_proofs_e2e_unique").on(table.e2eId)],
 );
 
 export const announcements = pgTable(
@@ -368,6 +413,9 @@ export const settings = pgTable("settings", {
   aboutText: text("about_text"),
   rulesText: text("rules_text"),
   contactText: text("contact_text"),
+  pixKey: text("pix_key"),
+  pixRecipientName: text("pix_recipient_name"),
+  pixInstructions: text("pix_instructions"),
   rankingEnabled: boolean("ranking_enabled").notNull().default(true),
   pointsWin: integer("points_win").notNull().default(3),
   pointsLoss: integer("points_loss").notNull().default(1),
@@ -428,6 +476,7 @@ export const gamePlayersRelations = relations(gamePlayers, ({ one }) => ({
 export type User = typeof users.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type Attendance = typeof attendances.$inferSelect;
+export type PaymentProof = typeof paymentProofs.$inferSelect;
 export type Draw = typeof draws.$inferSelect;
 export type DrawTeam = typeof drawTeams.$inferSelect;
 export type Game = typeof games.$inferSelect;

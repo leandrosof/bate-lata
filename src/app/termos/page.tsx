@@ -107,6 +107,11 @@ export default async function TermsPage() {
                 administradores. O sistema pode alterar a ordem da fila, montar times automaticamente e
                 corrigir resultados conforme as regras definidas no site.
               </p>
+              <p>
+                Em eventos pagos, a vaga fica reservada enquanto o administrador confere o Pix manualmente. A
+                presença só é confirmada após a aprovação do pagamento. Se o pagamento não for identificado, a
+                vaga pode ser liberada para a lista de espera.
+              </p>
             </section>
 
             <section className="space-y-2">

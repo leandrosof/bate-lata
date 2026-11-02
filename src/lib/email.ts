@@ -376,3 +376,109 @@ export function eventCancelledEmail(input: {
   });
   return { subject, text, html };
 }
+
+export function paymentPendingEmail(input: {
+  name: string;
+  siteName: string;
+  eventTitle: string;
+  startsAtLabel: string;
+  venueName: string;
+  amountLabel: string;
+  pixKey: string;
+  pixRecipientName?: string | null;
+  pixInstructions?: string | null;
+  link: string;
+}): EmailContent {
+  const subject = `Reserve sua vaga e faça o Pix — ${input.eventTitle}`;
+  const text = [
+    `Olá, ${input.name}!`,
+    "",
+    `Sua vaga em ${input.eventTitle} está reservada, mas ainda aguarda a confirmação do pagamento.`,
+    `${input.startsAtLabel} · ${input.venueName}`,
+    `Valor: ${input.amountLabel}`,
+    `Chave Pix: ${input.pixKey}`,
+    input.pixRecipientName ? `Recebedor: ${input.pixRecipientName}` : "",
+    input.pixInstructions ?? "",
+    "",
+    `Veja o evento: ${input.link}`,
+    "",
+    "O administrador confere o pagamento manualmente antes de confirmar sua presença.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const html = emailLayout({
+    siteName: input.siteName,
+    heading: "Sua vaga está reservada",
+    body: [
+      paragraph(`Olá, ${input.name}! Sua vaga em ${input.eventTitle} está reservada.`),
+      paragraph(`${input.startsAtLabel} · ${input.venueName}`),
+      paragraph(
+        `Valor: ${input.amountLabel}\nChave Pix: ${input.pixKey}${
+          input.pixRecipientName ? `\nRecebedor: ${input.pixRecipientName}` : ""
+        }${input.pixInstructions ? `\n${input.pixInstructions}` : ""}`,
+      ),
+      paragraph("O administrador confere o pagamento manualmente antes de confirmar sua presença."),
+    ].join(""),
+    ctaLabel: "Ver evento",
+    ctaUrl: input.link,
+  });
+  return { subject, text, html };
+}
+
+export function paymentApprovedEmail(input: {
+  name: string;
+  siteName: string;
+  eventTitle: string;
+  startsAtLabel: string;
+  venueName: string;
+  link: string;
+}): EmailContent {
+  const subject = `Pagamento aprovado — ${input.eventTitle}`;
+  const text = [
+    `Olá, ${input.name}!`,
+    "",
+    `Seu pagamento foi aprovado e sua presença está confirmada em ${input.eventTitle}.`,
+    `${input.startsAtLabel} · ${input.venueName}`,
+    "",
+    `Veja o evento: ${input.link}`,
+  ].join("\n");
+  const html = emailLayout({
+    siteName: input.siteName,
+    heading: "Pagamento aprovado",
+    body: [
+      paragraph(`Olá, ${input.name}! Seu pagamento foi aprovado e sua presença está confirmada.`),
+      paragraph(`${input.eventTitle}\n${input.startsAtLabel} · ${input.venueName}`),
+    ].join(""),
+    ctaLabel: "Ver evento",
+    ctaUrl: input.link,
+  });
+  return { subject, text, html };
+}
+
+export function paymentRejectedEmail(input: {
+  name: string;
+  siteName: string;
+  eventTitle: string;
+  link: string;
+}): EmailContent {
+  const subject = `Pagamento não identificado — ${input.eventTitle}`;
+  const text = [
+    `Olá, ${input.name}!`,
+    "",
+    `Não conseguimos identificar o pagamento da sua vaga em ${input.eventTitle}.`,
+    "Sua vaga foi liberada. Fale com um administrador para regularizar ou tentar novamente.",
+    "",
+    `Veja o evento: ${input.link}`,
+  ].join("\n");
+  const html = emailLayout({
+    siteName: input.siteName,
+    heading: "Pagamento não identificado",
+    body: [
+      paragraph(`Olá, ${input.name}! Não conseguimos identificar o pagamento da sua vaga.`),
+      paragraph("Sua vaga foi liberada. Fale com um administrador para regularizar ou tentar novamente."),
+    ].join(""),
+    ctaLabel: "Ver evento",
+    ctaUrl: input.link,
+  });
+  return { subject, text, html };
+}

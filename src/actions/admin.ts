@@ -4,7 +4,7 @@ import { and, count, eq, isNull, ne } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
-import { announcements, events, passwordResetTokens, seasons, settings, users } from "@/db/schema";
+import { announcements, attendances, events, passwordResetTokens, seasons, settings, users } from "@/db/schema";
 import {
   AppError,
   actionFailure,
@@ -67,6 +67,15 @@ export async function createEventAction(
       throw new AppError("O horário de término deve ser depois do início.");
     }
 
+    const paymentMode = parsed.data.paymentMode;
+    const priceCents =
+      paymentMode === "PAID" ? Math.round((parsed.data.price ?? 0) * 100) : null;
+    const autoPaymentReview =
+      paymentMode === "PAID" && parsed.data.autoPaymentReview === true;
+    if (paymentMode === "PAID" && !currentSettings.pixKey?.trim()) {
+      throw new AppError("Configure a chave Pix nas configurações antes de criar um evento pago.");
+    }
+
     const publicToken = randomBytes(6).toString("hex");
     const [created] = await db
       .insert(events)
@@ -79,6 +88,9 @@ export async function createEventAction(
         address: parsed.data.address?.trim() || null,
         surface: parsed.data.surface,
         maxPlayers: parsed.data.maxPlayers,
+        paymentMode,
+        priceCents,
+        autoPaymentReview,
         notes: parsed.data.notes?.trim() || null,
         rotationRule: parsed.data.rotationRule,
         maxStreak: parsed.data.maxStreak,
@@ -151,6 +163,39 @@ export async function updateEventAction(
       throw new AppError("O horário de término deve ser depois do início.");
     }
 
+    const paymentMode = parsed.data.paymentMode;
+    const priceCents =
+      paymentMode === "PAID" ? Math.round((parsed.data.price ?? 0) * 100) : null;
+    const autoPaymentReview =
+      paymentMode === "PAID" && parsed.data.autoPaymentReview === true;
+    if (paymentMode === "PAID" && !currentSettings.pixKey?.trim()) {
+      throw new AppError("Configure a chave Pix nas configurações antes de salvar um evento pago.");
+    }
+
+    if (paymentMode === "FREE") {
+      const [current] = await db
+        .select({ paymentMode: events.paymentMode })
+        .from(events)
+        .where(eq(events.id, eventId))
+        .limit(1);
+      if (current?.paymentMode === "PAID") {
+        const [pending] = await db
+          .select({ total: count() })
+          .from(attendances)
+          .where(
+            and(
+              eq(attendances.eventId, eventId),
+              eq(attendances.status, "PENDING_PAYMENT"),
+            ),
+          );
+        if (Number(pending?.total ?? 0) > 0) {
+          throw new AppError(
+            "Resolva os pagamentos pendentes antes de tornar este evento gratuito.",
+          );
+        }
+      }
+    }
+
     const updated = await db
       .update(events)
       .set({
@@ -161,6 +206,9 @@ export async function updateEventAction(
         address: parsed.data.address?.trim() || null,
         surface: parsed.data.surface,
         maxPlayers: parsed.data.maxPlayers,
+        paymentMode,
+        priceCents,
+        autoPaymentReview,
         notes: parsed.data.notes?.trim() || null,
         rotationRule: parsed.data.rotationRule,
         maxStreak: parsed.data.maxStreak,
@@ -400,6 +448,9 @@ export async function updateSettingsAction(
         aboutText: parsed.data.aboutText?.trim() || null,
         rulesText: parsed.data.rulesText?.trim() || null,
         contactText: parsed.data.contactText?.trim() || null,
+        pixKey: parsed.data.pixKey?.trim() || null,
+        pixRecipientName: parsed.data.pixRecipientName?.trim() || null,
+        pixInstructions: parsed.data.pixInstructions?.trim() || null,
         rankingEnabled: parsed.data.rankingEnabled,
         pointsWin: parsed.data.pointsWin,
         pointsLoss: parsed.data.pointsLoss,

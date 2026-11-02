@@ -22,6 +22,7 @@ import { ShareEventButton } from "@/components/features/share-event-button";
 import { AutoRefresh } from "@/components/features/auto-refresh";
 import { GameDurationBadge } from "@/components/features/game-duration";
 import { EventStatusBadge, GameStatusBadge } from "@/components/features/status-badge";
+import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { TeamPill } from "@/components/features/team-card";
 import { Avatar } from "@/components/ui/avatar";
@@ -52,17 +53,20 @@ export default async function HomePage() {
   const activeHours = activeEvent?.activeHours ?? 0;
 
   const confirmed = roster?.confirmed ?? [];
+  const pendingPayment = roster?.pendingPayment ?? [];
   const organizers = roster?.organizers ?? [];
   const waitlist = roster?.waitlist ?? [];
   const pending = roster?.pending ?? [];
   const mine =
     confirmed.find((row) => row.userId === user.id) ??
+    pendingPayment.find((row) => row.userId === user.id) ??
     organizers.find((row) => row.userId === user.id) ??
     waitlist.find((row) => row.userId === user.id) ??
     null;
 
-  const isFull = Boolean(nextEvent && confirmed.length >= nextEvent.maxPlayers);
-  const remaining = nextEvent ? Math.max(nextEvent.maxPlayers - confirmed.length, 0) : 0;
+  const reserved = confirmed.length + pendingPayment.length;
+  const isFull = Boolean(nextEvent && reserved >= nextEvent.maxPlayers);
+  const remaining = nextEvent ? Math.max(nextEvent.maxPlayers - reserved, 0) : 0;
   const capacityTone = isFull ? "success" : remaining <= 3 ? "warning" : "brand";
   const parts = nextEvent ? dayParts(nextEvent.startsAt, settings.timezone) : null;
 
@@ -165,6 +169,7 @@ export default async function HomePage() {
               </div>
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 <SurfaceBadge surface={nextEvent.surface} />
+                <EventPriceBadge paymentMode={nextEvent.paymentMode} priceCents={nextEvent.priceCents} />
                 <EventStatusBadge status={nextEvent.status} />
               </div>
             </div>
@@ -197,11 +202,16 @@ export default async function HomePage() {
                 </p>
               </div>
               <Progress
-                value={confirmed.length}
+                value={reserved}
                 max={nextEvent.maxPlayers}
                 tone={capacityTone}
                 className="h-2.5"
               />
+              {pendingPayment.length > 0 ? (
+                <p className="text-[11px] text-warning">
+                  {pendingPayment.length} aguardando aprovação do pagamento
+                </p>
+              ) : null}
             </div>
 
             {confirmed.length > 0 ? (
@@ -244,6 +254,9 @@ export default async function HomePage() {
                   isFull={isFull}
                   allowWaitlist={settings.allowWaitlist}
                   isOrganizer={organizers.some((row) => row.userId === user.id)}
+                  attendanceId={mine?.attendanceId}
+                  autoPaymentReview={nextEvent.autoPaymentReview}
+                  requiresPayment={nextEvent.paymentMode === "PAID"}
                 />
               )}
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted">

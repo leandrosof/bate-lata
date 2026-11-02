@@ -262,6 +262,107 @@ test("novo jogador se cadastra, confirma presença e não acessa administração
   await expect(eventCard.getByRole("button", { name: "Confirmar presença" })).toBeVisible();
 });
 
+test("evento pago reserva vaga até o admin aprovar o Pix", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto("/admin/config");
+  await page.locator("#pixKey").fill("pix@arena.local");
+  await page.locator("#pixRecipientName").fill("Leandro Silva");
+  await page.getByRole("button", { name: "Salvar configurações" }).click();
+  await expect(page.getByText("Configurações salvas.")).toBeVisible();
+
+  await page.goto("/jogos");
+  const today = new Date();
+  const paidDay = new Date(today);
+  paidDay.setDate(today.getDate() + 2);
+  const paidKey = `${paidDay.getFullYear()}-${String(paidDay.getMonth() + 1).padStart(2, "0")}-${String(paidDay.getDate()).padStart(2, "0")}`;
+  await page.getByTestId(`calendar-day-${paidKey}`).click();
+  await page.locator("#cal-title").fill("Jogo Pago E2E");
+  await page.locator("#cal-start").fill(`${paidKey}T19:00`);
+  await page.locator("#cal-end").fill(`${paidKey}T21:00`);
+  await page.locator("#cal-max").fill("10");
+  await page.locator("#cal-venue").fill("Arena Pix");
+  await page.locator("#cal-payment-mode").selectOption("PAID");
+  await page.locator("#cal-price").fill("20");
+  await page.locator("#cal-surface").selectOption("COURT");
+  await page.getByRole("button", { name: "Criar evento" }).click();
+  await expect(page.getByText("Evento criado.")).toBeVisible();
+
+  const eventCard = page
+    .locator("div.card")
+    .filter({ has: page.getByRole("heading", { name: "Jogo Pago E2E", exact: true }) })
+    .first();
+  const presencasHref = await eventCard.getByRole("link", { name: "Lista completa" }).getAttribute("href");
+  expect(presencasHref).toBeTruthy();
+  await page.goto(presencasHref!);
+
+  await page.getByTestId("pending-card").getByRole("button", { name: "Confirmar" }).first().click();
+  await expect(page.getByTestId("pending-payment-card")).toBeVisible();
+  await page.getByTestId("pending-payment-card").getByRole("button", { name: "Aprovar" }).first().click();
+  await confirmAction(page);
+  await expect(page.getByTestId("pending-payment-card")).toBeHidden();
+  await expect(page.getByTestId("confirmed-card").getByText("Ana Souza")).toBeVisible();
+});
+
+test("comprovante Pix válido é aprovado automaticamente", async ({ page, browser }) => {
+  const adminContext = await browser.newContext();
+  const admin = await adminContext.newPage();
+  await loginAdmin(admin);
+  await admin.goto("/admin/config");
+  await admin.locator("#pixKey").fill("pix@arena.local");
+  await admin.locator("#pixRecipientName").fill("Leandro Silva");
+  await admin.getByRole("button", { name: "Salvar configurações" }).click();
+  await expect(admin.getByText("Configurações salvas.")).toBeVisible();
+
+  await admin.goto("/jogos");
+  const today = new Date();
+  const ocrDay = new Date(today);
+  ocrDay.setDate(today.getDate() + 3);
+  const ocrKey = `${ocrDay.getFullYear()}-${String(ocrDay.getMonth() + 1).padStart(2, "0")}-${String(ocrDay.getDate()).padStart(2, "0")}`;
+  await admin.getByTestId(`calendar-day-${ocrKey}`).click();
+  await admin.locator("#cal-title").fill("Jogo OCR E2E");
+  await admin.locator("#cal-start").fill(`${ocrKey}T19:00`);
+  await admin.locator("#cal-end").fill(`${ocrKey}T21:00`);
+  await admin.locator("#cal-max").fill("10");
+  await admin.locator("#cal-venue").fill("Arena OCR");
+  await admin.locator("#cal-payment-mode").selectOption("PAID");
+  await admin.locator("#cal-price").fill("20");
+  await admin.locator('input[name="autoPaymentReview"]').check();
+  await admin.locator("#cal-surface").selectOption("COURT");
+  await admin.getByRole("button", { name: "Criar evento" }).click();
+  await expect(admin.getByText("Evento criado.")).toBeVisible();
+  await adminContext.close();
+
+  await login(page, "novato@arena.local", "Arena@2026");
+  await page.goto("/jogos");
+  const eventCard = page
+    .locator("div.card")
+    .filter({ has: page.getByRole("heading", { name: "Jogo OCR E2E", exact: true }) })
+    .first();
+  await eventCard.getByRole("button", { name: "Solicitar vaga (Pix)" }).click();
+  await expect(page.getByText("Enviar comprovante Pix")).toBeVisible();
+
+  const now = new Date();
+  const dateLabel = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+  const timeLabel = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const svg = `<svg width="900" height="400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" fill="white"/>
+    <text x="40" y="90" font-size="42" font-family="Arial">Comprovante Pix</text>
+    <text x="40" y="160" font-size="34" font-family="Arial">Valor R$ 20,00</text>
+    <text x="40" y="230" font-size="30" font-family="Arial">Data ${dateLabel} ${timeLabel}</text>
+    <text x="40" y="300" font-size="30" font-family="Arial">E12345678202611021430000123456</text>
+    <text x="40" y="360" font-size="30" font-family="Arial">Recebedor LEANDRO SILVA</text>
+  </svg>`;
+  const proof = await sharp(Buffer.from(svg)).png().toBuffer();
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "comprovante.png",
+    mimeType: "image/png",
+    buffer: proof,
+  });
+
+  await expect(eventCard.getByText("Você vai")).toBeVisible({ timeout: 60_000 });
+});
+
 test("administrador ativa e desativa o ranking sem perder resultados", async ({ page }) => {
   await loginAdmin(page);
   await page.goto("/admin/config");

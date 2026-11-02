@@ -9,12 +9,16 @@ import {
   UserCog,
   UserPlus,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import {
   adminAddAttendanceAction,
+  adminApprovePaymentAction,
+  adminClearPaymentProofAction,
   adminMoveWaitlistAction,
   adminPromoteAttendanceAction,
+  adminRejectPaymentAction,
   adminRemoveAttendanceAction,
   toggleOrganizerAction,
 } from "@/actions/attendance";
@@ -24,6 +28,7 @@ import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
 import { EventPicker } from "@/components/features/event-picker";
 import { EventStatusBadge } from "@/components/features/status-badge";
+import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +40,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
 import { getEventById, getEventRoster, listOperationalEvents } from "@/db/queries/events";
 import { requireUser } from "@/lib/auth";
+import { formatCents } from "@/lib/money";
 import { getSettings } from "@/lib/settings";
 import { surfaceLabel } from "@/lib/surface";
 import { formatDateTime } from "@/lib/time";
@@ -61,12 +67,15 @@ export default async function AttendancePage({
 
   const roster = selected ? await getEventRoster(selected.id) : null;
   const mine = roster
-    ? ([...roster.confirmed, ...roster.organizers, ...roster.waitlist].find((row) => row.userId === user.id) ?? null)
+    ? ([...roster.confirmed, ...roster.pendingPayment, ...roster.organizers, ...roster.waitlist].find(
+        (row) => row.userId === user.id,
+      ) ?? null)
     : null;
 
   const isAdmin = user.role === "ADMIN";
-  const isFull = Boolean(selected && roster && roster.confirmed.length >= selected.maxPlayers);
-  const remaining = selected ? Math.max(selected.maxPlayers - (roster?.confirmed.length ?? 0), 0) : 0;
+  const reservedCount = (roster?.confirmed.length ?? 0) + (roster?.pendingPayment.length ?? 0);
+  const isFull = Boolean(selected && roster && reservedCount >= selected.maxPlayers);
+  const remaining = selected ? Math.max(selected.maxPlayers - reservedCount, 0) : 0;
 
   return (
     <div>
@@ -111,6 +120,7 @@ export default async function AttendancePage({
                       {selected.title}
                     </h2>
                     <SurfaceBadge surface={selected.surface} />
+                    <EventPriceBadge paymentMode={selected.paymentMode} priceCents={selected.priceCents} />
                     <EventStatusBadge status={selected.status} />
                   </div>
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
@@ -127,7 +137,7 @@ export default async function AttendancePage({
                 </div>
                 <div className="text-right">
                   <p className="font-display text-3xl font-bold leading-none text-ink">
-                    {roster.confirmed.length}
+                    {reservedCount}
                     <span className="text-lg text-muted">/{selected.maxPlayers}</span>
                   </p>
                   <p className="text-[11px] uppercase tracking-wider text-muted">
@@ -136,14 +146,36 @@ export default async function AttendancePage({
                 </div>
               </div>
 
+              {selected.paymentMode === "PAID" ? (
+                <div className="rounded-xl border border-brand/25 bg-brand/10 p-3 text-sm">
+                  <p className="font-semibold text-ink">
+                    {selected.priceCents && selected.priceCents > 0
+                      ? `Valor: ${formatCents(selected.priceCents)} por jogador`
+                      : "Valor pendente. Configure o valor deste evento pago."}
+                  </p>
+                  {selected.priceCents && selected.priceCents > 0 ? (
+                    <>
+                      <p className="mt-0.5 text-xs text-muted">
+                        Pix: <span className="font-medium text-ink">{settings.pixKey ?? "não configurado"}</span>
+                        {settings.pixRecipientName ? ` · ${settings.pixRecipientName}` : ""}
+                      </p>
+                      {settings.pixInstructions ? (
+                        <p className="mt-1 whitespace-pre-line text-xs text-muted">{settings.pixInstructions}</p>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+
               <Progress
-                value={roster.confirmed.length}
+                value={reservedCount}
                 max={selected.maxPlayers}
                 tone={isFull ? "success" : remaining <= 3 ? "warning" : "brand"}
               />
 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="success">{roster.confirmed.length} confirmados</Badge>
+                <Badge tone="warning">{roster.pendingPayment.length} aguardando Pix</Badge>
                 <Badge tone="warning">{roster.waitlist.length} na espera</Badge>
                 <Badge tone="neutral">{roster.pending.length} sem resposta</Badge>
                 <div className="ml-auto">
@@ -174,10 +206,106 @@ export default async function AttendancePage({
                   isFull={isFull}
                   allowWaitlist={settings.allowWaitlist}
                   isOrganizer={Boolean(mine?.isOrganizer)}
+                  attendanceId={mine?.attendanceId}
+                  autoPaymentReview={selected.autoPaymentReview}
+                  requiresPayment={selected.paymentMode === "PAID"}
                 />
               )}
             </CardBody>
           </Card>
+
+          {roster.pendingPayment.length > 0 ? (
+            <Card data-testid="pending-payment-card" className="border-[rgba(245,185,66,0.35)]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning-soft text-warning">
+                    <Wallet className="h-4 w-4" aria-hidden />
+                  </span>
+                  <CardTitle>Aguardando pagamento</CardTitle>
+                </div>
+                <Badge tone="warning">{roster.pendingPayment.length}</Badge>
+              </CardHeader>
+              <CardBody className="space-y-2 pt-2">
+                <p className="text-xs text-muted">
+                  A vaga fica reservada até o administrador aprovar ou rejeitar o Pix.
+                </p>
+                <ul className="divide-y divide-line/60">
+                  {roster.pendingPayment.map((player) => (
+                    <li key={player.attendanceId} className="flex flex-wrap items-center gap-2 py-2">
+                      <Avatar
+                        userId={player.userId}
+                        name={player.name}
+                        version={player.avatarUpdatedAt}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-ink">{player.name}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted">
+                          {formatCents(selected.priceCents)} · desde{" "}
+                          {formatDateTime(player.since, settings.timezone)}
+                        </p>
+                      </div>
+                      {isAdmin && player.paymentProofId ? (
+                        <div className="w-full rounded-lg border border-line bg-surface-2/50 p-2 text-[11px] text-muted">
+                          <p>
+                            E2E: <span className="font-medium text-ink">{player.paymentProofE2eId ?? "não identificado"}</span>
+                            {" · "}OCR: {player.paymentProofConfidence ?? 0}%
+                          </p>
+                          <p>
+                            Recebedor: {player.paymentProofRecipientName ?? "não identificado"}
+                          </p>
+                          {player.paymentProofReviewReasons?.length ? (
+                            <p className="mt-0.5 font-semibold text-warning">
+                              Análise: {player.paymentProofReviewReasons.join(", ")}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {isAdmin ? (
+                        <div className="flex items-center gap-1.5">
+                          <ActionButton
+                            action={adminApprovePaymentAction}
+                            fields={{ attendanceId: player.attendanceId }}
+                            variant="success"
+                            size="sm"
+                            confirmMessage={`Aprovar o pagamento de ${player.name}?`}
+                            icon={<Check className="h-3.5 w-3.5" aria-hidden />}
+                          >
+                            Aprovar
+                          </ActionButton>
+                          <ActionButton
+                            action={adminRejectPaymentAction}
+                            fields={{ attendanceId: player.attendanceId }}
+                            variant="danger"
+                            size="sm"
+                            confirmMessage={`Rejeitar o pagamento de ${player.name}? A vaga será liberada.`}
+                            icon={<X className="h-3.5 w-3.5" aria-hidden />}
+                          >
+                            Rejeitar
+                          </ActionButton>
+                          {player.paymentProofId ? (
+                            <ActionButton
+                              action={adminClearPaymentProofAction}
+                              fields={{ attendanceId: player.attendanceId }}
+                              variant="ghost"
+                              size="sm"
+                              confirmMessage={`Limpar o comprovante de ${player.name}? Ele poderá enviar outro.`}
+                            >
+                              Limpar
+                            </ActionButton>
+                          ) : null}
+                        </div>
+                      ) : player.userId === user.id ? (
+                        <Badge tone="warning">Aguardando aprovação</Badge>
+                      ) : (
+                        <Badge>Reservada</Badge>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardBody>
+            </Card>
+          ) : null}
 
           <div className="grid gap-3 lg:grid-cols-2">
             <Card data-testid="confirmed-card">

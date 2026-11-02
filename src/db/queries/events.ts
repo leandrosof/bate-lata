@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { db } from "../client";
-import { attendances, draws, events, games, users } from "../schema";
+import { attendances, draws, events, games, paymentProofs, users } from "../schema";
 import type { EventRow } from "../schema";
 
 export type RosterPlayer = {
@@ -9,7 +9,7 @@ export type RosterPlayer = {
   name: string;
   nickname: string | null;
   avatarUpdatedAt: Date | null;
-  status: "CONFIRMED" | "WAITLIST" | "CANCELLED";
+  status: "PENDING_PAYMENT" | "CONFIRMED" | "WAITLIST" | "CANCELLED";
   waitlistPosition: number | null;
   rotationStatus: "IDLE" | "WAITING" | "PLAYING" | "LEFT" | "PAUSED";
   checkedInAt: Date | null;
@@ -17,10 +17,20 @@ export type RosterPlayer = {
   gamesPlayed: number;
   isOrganizer: boolean;
   since: Date;
+  paymentProofId: string | null;
+  paymentProofE2eId: string | null;
+  paymentProofAmountCents: number | null;
+  paymentProofPaidAt: Date | null;
+  paymentProofRecipientName: string | null;
+  paymentProofConfidence: number | null;
+  paymentProofStatus: "PROCESSING" | "NEEDS_REVIEW" | "APPROVED" | "REJECTED" | null;
+  paymentProofReviewReasons: string[] | null;
 };
 
 export type EventSummary = EventRow & {
   confirmedCount: number;
+  pendingPaymentCount: number;
+  reservedCount: number;
   waitlistCount: number;
 };
 
@@ -46,10 +56,19 @@ async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
     const confirmedCount = counts
       .filter((row) => row.eventId === event.id && row.status === "CONFIRMED")
       .reduce((total, row) => total + Number(row.total), 0);
+    const pendingPaymentCount = counts
+      .filter((row) => row.eventId === event.id && row.status === "PENDING_PAYMENT")
+      .reduce((total, row) => total + Number(row.total), 0);
     const waitlistCount = counts
       .filter((row) => row.eventId === event.id && row.status === "WAITLIST")
       .reduce((total, row) => total + Number(row.total), 0);
-    return { ...event, confirmedCount, waitlistCount };
+    return {
+      ...event,
+      confirmedCount,
+      pendingPaymentCount,
+      reservedCount: confirmedCount + pendingPaymentCount,
+      waitlistCount,
+    };
   });
 }
 
@@ -187,6 +206,7 @@ export async function listAllEvents(limit = 80): Promise<EventSummary[]> {
 
 export async function getEventRoster(eventId: string): Promise<{
   confirmed: RosterPlayer[];
+  pendingPayment: RosterPlayer[];
   organizers: RosterPlayer[];
   waitlist: RosterPlayer[];
   pending: { userId: string; name: string; nickname: string | null; avatarUpdatedAt: Date | null }[];
@@ -207,14 +227,26 @@ export async function getEventRoster(eventId: string): Promise<{
       gamesPlayed: attendances.gamesPlayed,
       isOrganizer: attendances.isOrganizer,
       since: attendances.createdAt,
+      paymentProofId: paymentProofs.id,
+      paymentProofE2eId: paymentProofs.e2eId,
+      paymentProofAmountCents: paymentProofs.amountCents,
+      paymentProofPaidAt: paymentProofs.paidAt,
+      paymentProofRecipientName: paymentProofs.recipientName,
+      paymentProofConfidence: paymentProofs.confidence,
+      paymentProofStatus: paymentProofs.status,
+      paymentProofReviewReasons: paymentProofs.reviewReasons,
     })
     .from(attendances)
     .innerJoin(users, eq(users.id, attendances.userId))
+    .leftJoin(paymentProofs, eq(paymentProofs.attendanceId, attendances.id))
     .where(eq(attendances.eventId, eventId))
     .orderBy(asc(attendances.waitlistPosition), asc(attendances.createdAt));
 
   const confirmed = rows
     .filter((row) => row.status === "CONFIRMED" && !row.isOrganizer)
+    .sort((a, b) => a.since.getTime() - b.since.getTime());
+  const pendingPayment = rows
+    .filter((row) => row.status === "PENDING_PAYMENT" && !row.isOrganizer)
     .sort((a, b) => a.since.getTime() - b.since.getTime());
   const organizers = rows
     .filter((row) => row.status === "CONFIRMED" && row.isOrganizer)
@@ -238,7 +270,7 @@ export async function getEventRoster(eventId: string): Promise<{
 
   const pending = activeUsers.filter((user) => !listed.has(user.userId));
 
-  return { confirmed, organizers, waitlist, pending, cancelled };
+  return { confirmed, pendingPayment, organizers, waitlist, pending, cancelled };
 }
 
 export async function listConfirmedPlayers(eventId: string) {

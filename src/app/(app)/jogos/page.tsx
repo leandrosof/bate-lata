@@ -6,6 +6,7 @@ import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { EventCalendar } from "@/components/features/event-calendar";
 import { ShareEventButton } from "@/components/features/share-event-button";
 import { EventStatusBadge } from "@/components/features/status-badge";
+import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -35,7 +36,11 @@ export default async function UpcomingPage() {
     address: event.address,
     surface: event.surface,
     maxPlayers: event.maxPlayers,
+    paymentMode: event.paymentMode,
+    priceCents: event.priceCents,
     confirmedCount: event.confirmedCount,
+    reservedCount: event.reservedCount,
+    pendingPaymentCount: event.pendingPaymentCount,
     waitlistCount: event.waitlistCount,
     publicToken: event.publicToken,
     coverMime: event.coverMime,
@@ -82,7 +87,7 @@ export default async function UpcomingPage() {
             const parts = dayParts(event.startsAt, settings.timezone);
             const mine = attendanceMap.get(event.id);
             const organizing = Boolean(mine?.isOrganizer) || (user.role === "ADMIN" && !mine);
-            const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
+            const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
             const isFull = remaining === 0;
 
             return (
@@ -105,6 +110,7 @@ export default async function UpcomingPage() {
                             {event.title}
                           </h2>
                           <SurfaceBadge surface={event.surface} />
+                          <EventPriceBadge paymentMode={event.paymentMode} priceCents={event.priceCents} />
                           <EventStatusBadge status={event.status} />
                         </div>
                         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
@@ -128,18 +134,22 @@ export default async function UpcomingPage() {
                             ? "brand"
                             : mine?.status === "CONFIRMED"
                               ? "success"
-                              : mine?.status === "WAITLIST"
+                              : mine?.status === "PENDING_PAYMENT"
                                 ? "warning"
-                                : "neutral"
+                                : mine?.status === "WAITLIST"
+                                  ? "warning"
+                                  : "neutral"
                         }
                       >
                         {organizing
                           ? "Organizando"
                           : mine?.status === "CONFIRMED"
                             ? "Você vai"
-                            : mine?.status === "WAITLIST"
-                              ? `${mine.waitlistPosition}º na fila`
-                              : "Não confirmou"}
+                            : mine?.status === "PENDING_PAYMENT"
+                              ? "Aguardando Pix"
+                              : mine?.status === "WAITLIST"
+                                ? `${mine.waitlistPosition}º na fila`
+                                : "Não confirmou"}
                       </Badge>
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                         {countdownLabel(event.startsAt, settings.timezone)}
@@ -159,13 +169,20 @@ export default async function UpcomingPage() {
                       </span>
                     </div>
                     <Progress
-                      value={event.confirmedCount}
+                      value={event.reservedCount}
                       max={event.maxPlayers}
                       tone={isFull ? "success" : remaining <= 3 ? "warning" : "brand"}
                     />
-                    {event.waitlistCount > 0 ? (
-                      <p className="text-[11px] text-warning">{event.waitlistCount} na lista de espera</p>
-                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      {event.pendingPaymentCount > 0 ? (
+                        <p className="text-[11px] text-warning">
+                          {event.pendingPaymentCount} aguardando pagamento
+                        </p>
+                      ) : null}
+                      {event.waitlistCount > 0 ? (
+                        <p className="text-[11px] text-warning">{event.waitlistCount} na lista de espera</p>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -184,6 +201,9 @@ export default async function UpcomingPage() {
                         isFull={isFull}
                         allowWaitlist={settings.allowWaitlist}
                         isOrganizer={Boolean(mine?.isOrganizer)}
+                        attendanceId={mine?.attendanceId}
+                        autoPaymentReview={event.autoPaymentReview}
+                        requiresPayment={event.paymentMode === "PAID"}
                         size="sm"
                         block={false}
                       />

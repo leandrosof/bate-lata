@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/layout/brand";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { PublicAuthMenu } from "@/components/features/public-auth-menu";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { TeamPill } from "@/components/features/team-card";
@@ -33,7 +34,7 @@ const AGENDA_PAGE_SIZE = 6;
 
 function occupancyLabel(event: EventSummary, finished: boolean): string {
   if (finished) return "Encerrado";
-  const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
+  const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
   if (remaining === 0) return "Lotado";
   return `${remaining} vaga${remaining === 1 ? "" : "s"}`;
 }
@@ -65,9 +66,9 @@ function AgendaCard({
   timeZone: string;
   finished: boolean;
 }) {
-  const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
+  const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
   const badgeLabel = occupancyLabel(event, finished);
-  const zeroConfirmed = !finished && event.confirmedCount === 0;
+  const zeroConfirmed = !finished && event.reservedCount === 0;
 
   return (
     <article className="card overflow-hidden transition hover:border-brand/40">
@@ -91,9 +92,12 @@ function AgendaCard({
         </div>
 
         <div className="space-y-2.5 p-4">
-          <h3 className="truncate font-display text-lg font-semibold uppercase tracking-wide text-ink">
-            {event.title}
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="truncate font-display text-lg font-semibold uppercase tracking-wide text-ink">
+              {event.title}
+            </h3>
+            <EventPriceBadge paymentMode={event.paymentMode} priceCents={event.priceCents} />
+          </div>
           <div className="space-y-1 text-xs text-muted">
             <p className="flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -126,7 +130,7 @@ function AgendaCard({
           ) : (
             <>
               <Progress
-                value={event.confirmedCount}
+                value={event.reservedCount}
                 max={event.maxPlayers}
                 tone={finished ? "success" : remaining === 0 ? "danger" : remaining <= 3 ? "warning" : "brand"}
               />
@@ -147,7 +151,7 @@ function AgendaCard({
 }
 
 function NextEventCard({ event, timeZone }: { event: EventSummary; timeZone: string }) {
-  const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
+  const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
 
   return (
     <article className="relative flex min-h-[340px] flex-col justify-end overflow-hidden rounded-3xl border border-white/10 bg-slate-900 text-white shadow-[0_24px_60px_-32px_rgba(15,23,42,0.65)]">
@@ -181,6 +185,9 @@ function NextEventCard({ event, timeZone }: { event: EventSummary; timeZone: str
           <h2 className="mt-1 font-display text-3xl font-semibold uppercase leading-tight tracking-wide text-white sm:text-4xl">
             {event.title}
           </h2>
+          <div className="mt-2">
+            <EventPriceBadge paymentMode={event.paymentMode} priceCents={event.priceCents} onDark />
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/85">
@@ -262,7 +269,7 @@ export default async function LandingPage({
   const allUpcoming = (await listUpcomingEvents()).filter((event) => event.publicToken);
   const allFinished = await listFinishedPublicEvents();
   const nextEvent =
-    allUpcoming.find((event) => event.maxPlayers > event.confirmedCount) ?? allUpcoming[0] ?? null;
+    allUpcoming.find((event) => event.maxPlayers > event.reservedCount) ?? allUpcoming[0] ?? null;
   const upcomingAgenda =
     allUpcoming.length > 1 && nextEvent
       ? allUpcoming.filter((event) => event.id !== nextEvent.id)

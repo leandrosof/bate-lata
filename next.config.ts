@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR?.trim() || ".next",
-  serverExternalPackages: ["sharp", "nodemailer"],
+  serverExternalPackages: ["sharp", "nodemailer", "tesseract.js"],
   turbopack: {
     rules: {
       "*.css": {

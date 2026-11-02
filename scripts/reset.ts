@@ -20,6 +20,7 @@ async function run() {
     "draws",
     "announcements",
     "attendances",
+    "payment_proofs",
     "password_reset_tokens",
     "email_verification_tokens",
     "sessions",

@@ -9,8 +9,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Input, Label, Select, Switch, Textarea } from "@/components/ui/input";
 import { EventCoverUpload } from "@/components/features/image-uploads";
+import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { ShareEventButton } from "@/components/features/share-event-button";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { Progress } from "@/components/ui/progress";
@@ -90,6 +91,44 @@ function EventFields({
           />
         </div>
       </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor={`${idPrefix}-payment-mode`} required>
+            Tipo de evento
+          </Label>
+          <Select
+            id={`${idPrefix}-payment-mode`}
+            name="paymentMode"
+            defaultValue={event?.paymentMode ?? "FREE"}
+          >
+            <option value="FREE">Gratuito</option>
+            <option value="PAID">Pago</option>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor={`${idPrefix}-price`}>Valor por jogador (R$)</Label>
+          <Input
+            id={`${idPrefix}-price`}
+            name="price"
+            type="number"
+            min={0}
+            max={10000}
+            step="0.01"
+            inputMode="decimal"
+            defaultValue={event?.priceCents ? (event.priceCents / 100).toFixed(2) : ""}
+            placeholder="0,00"
+          />
+          <p className="mt-1 text-[11px] text-muted">
+            Obrigatório para evento pago. Ignorado no gratuito.
+          </p>
+        </div>
+      </div>
+      <Switch
+        name="autoPaymentReview"
+        label="Ativar reconhecimento automático de pagamento via comprovante"
+        description="O jogador envia o print do Pix e o sistema tenta validar automaticamente. Se algo divergir, o admin analisa. Só se aplica a eventos pagos."
+        defaultChecked={event?.autoPaymentReview ?? false}
+      />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <Label htmlFor={`${idPrefix}-venue`} required>
@@ -186,7 +225,7 @@ export default async function AdminEventsPage({
         ) : (
           <div className="space-y-2">
             {events.map((event) => {
-              const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
+              const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
               return (
                 <Card key={event.id}>
                   <CardBody className="space-y-2.5">
@@ -212,6 +251,11 @@ export default async function AdminEventsPage({
                                 ? "Cancelado"
                                 : "Realizado"}
                           </Badge>
+                          <EventPriceBadge paymentMode={event.paymentMode} priceCents={event.priceCents} />
+                          {event.autoPaymentReview ? <Badge tone="brand">OCR Pix</Badge> : null}
+                          {event.pendingPaymentCount > 0 ? (
+                            <Badge tone="warning">{event.pendingPaymentCount} aguardando Pix</Badge>
+                          ) : null}
                         </div>
                         <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
                           <Clock className="h-3.5 w-3.5" aria-hidden />
@@ -226,17 +270,17 @@ export default async function AdminEventsPage({
                       </div>
                       <div className="text-right">
                         <p className="font-display text-2xl font-bold leading-none text-ink">
-                          {event.confirmedCount}
+                          {event.reservedCount}
                           <span className="text-sm text-muted">/{event.maxPlayers}</span>
                         </p>
                         <p className="text-[10px] uppercase tracking-wider text-muted">
-                          {event.waitlistCount} na fila
+                          {event.confirmedCount} confirmados · {event.waitlistCount} na fila
                         </p>
                       </div>
                     </div>
 
                     <Progress
-                      value={event.confirmedCount}
+                      value={event.reservedCount}
                       max={event.maxPlayers}
                       tone={remaining === 0 ? "success" : remaining <= 3 ? "warning" : "brand"}
                     />

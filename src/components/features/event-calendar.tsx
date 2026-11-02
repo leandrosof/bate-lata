@@ -17,11 +17,12 @@ import {
 import { ptBR } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Plus, X } from "lucide-react";
 import { createEventAction } from "@/actions/admin";
+import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { ActionForm } from "@/components/ui/action-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Input, Label, Select, Switch, Textarea } from "@/components/ui/input";
 
 export type CalendarEvent = {
   id: string;
@@ -32,7 +33,11 @@ export type CalendarEvent = {
   address: string | null;
   surface: string | null;
   maxPlayers: number;
+  paymentMode: "FREE" | "PAID";
+  priceCents: number | null;
   confirmedCount: number;
+  reservedCount: number;
+  pendingPaymentCount: number;
   waitlistCount: number;
   publicToken: string | null;
   coverMime: string | null;
@@ -169,8 +174,12 @@ export function EventCalendar({
                       <p className="font-display text-base font-semibold uppercase tracking-wide text-ink">
                         {event.title}
                       </p>
-                      <Badge tone="success">{Math.max(event.maxPlayers - event.confirmedCount, 0)} vagas</Badge>
+                      <Badge tone="success">{Math.max(event.maxPlayers - event.reservedCount, 0)} vagas</Badge>
+                      {event.pendingPaymentCount > 0 ? (
+                        <Badge tone="warning">{event.pendingPaymentCount} aguardando Pix</Badge>
+                      ) : null}
                       <SurfaceBadge surface={event.surface} />
+                      <EventPriceBadge paymentMode={event.paymentMode} priceCents={event.priceCents} />
                     </div>
                     <p className="mt-1 flex items-center gap-1 text-xs text-muted">
                       <Clock className="h-3 w-3" aria-hidden />
@@ -250,6 +259,38 @@ export function EventCalendar({
                       <Input id="cal-max" name="maxPlayers" type="number" min={2} max={200} defaultValue={12} required />
                     </div>
                   </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="cal-payment-mode" required>
+                        Tipo de evento
+                      </Label>
+                      <Select id="cal-payment-mode" name="paymentMode" defaultValue="FREE">
+                        <option value="FREE">Gratuito</option>
+                        <option value="PAID">Pago</option>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="cal-price">Valor por jogador (R$)</Label>
+                      <Input
+                        id="cal-price"
+                        name="price"
+                        type="number"
+                        min={0}
+                        max={10000}
+                        step="0.01"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                      />
+                      <p className="mt-1 text-[11px] text-muted">
+                        Obrigatório para evento pago.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    name="autoPaymentReview"
+                    label="Reconhecer pagamento pelo comprovante"
+                    description="Envie o print do Pix e o sistema tenta aprovar automaticamente. Só se aplica a eventos pagos."
+                  />
                   <div>
                     <Label htmlFor="cal-surface" required>
                       Piso
