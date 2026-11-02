@@ -6,6 +6,7 @@ import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
+import { compressImageFile } from "@/lib/image-compression";
 
 function useUploader() {
   const router = useRouter();
@@ -28,8 +29,15 @@ export function LogoUpload({
   async function upload(file: File) {
     setBusy("upload");
     try {
+      const optimized = await compressImageFile(file, {
+        maxWidth: 1024,
+        maxHeight: 1024,
+        targetBytes: 1.5 * 1024 * 1024,
+        quality: 0.86,
+      }).catch(() => file);
+
       const body = new FormData();
-      body.append("logo", file);
+      body.append("logo", optimized);
       const response = await fetch("/api/logo", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
@@ -109,7 +117,9 @@ export function LogoUpload({
           ) : null}
         </div>
       </div>
-      <p className="text-[11px] text-muted">PNG/JPG/WebP, até 2 MB. Recomendado quadrado (512×512).</p>
+      <p className="text-[11px] text-muted">
+        PNG/JPG/WebP/AVIF. Imagens grandes são otimizadas automaticamente. Recomendado quadrado (512×512).
+      </p>
       <ConfirmDialog
         open={confirmRemove}
         title="Remover logo"
@@ -140,8 +150,15 @@ export function EventCoverUpload({
   async function upload(file: File) {
     setBusy("upload");
     try {
+      const optimized = await compressImageFile(file, {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        targetBytes: 3 * 1024 * 1024,
+        quality: 0.86,
+      }).catch(() => file);
+
       const body = new FormData();
-      body.append("cover", file);
+      body.append("cover", optimized);
       const response = await fetch(`/api/event-cover/${eventId}`, { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
@@ -223,7 +240,9 @@ export function EventCoverUpload({
           </Button>
         ) : null}
       </div>
-      <p className="text-[11px] text-muted">Opcional. Formato paisagem; recomendado 1200×675.</p>
+      <p className="text-[11px] text-muted">
+        Opcional. Formato paisagem; recomendado 1200×675. Otimizada automaticamente.
+      </p>
       <ConfirmDialog
         open={confirmRemove}
         title="Remover capa"

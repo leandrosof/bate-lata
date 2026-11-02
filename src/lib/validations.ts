@@ -52,6 +52,10 @@ export const updateProfileSchema = z.object({
   nickname: z.string().trim().max(30, "Apelido muito longo.").optional(),
 });
 
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Informe sua senha para confirmar."),
+});
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Informe a senha atual."),

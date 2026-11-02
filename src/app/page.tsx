@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/layout/brand";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { PublicAuthMenu } from "@/components/features/public-auth-menu";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { TeamPill } from "@/components/features/team-card";
 import { Badge } from "@/components/ui/badge";
@@ -331,6 +332,7 @@ export default async function LandingPage({
               </Link>
             ) : (
               <>
+                <PublicAuthMenu />
                 <Link
                   href="/entrar"
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden min-h-[44px] sm:inline-flex")}
@@ -339,7 +341,7 @@ export default async function LandingPage({
                 </Link>
                 <Link
                   href="/cadastro"
-                  className={cn(buttonVariants({ variant: "primary", size: "sm" }), "min-h-[44px]")}
+                  className={cn(buttonVariants({ variant: "primary", size: "sm" }), "hidden min-h-[44px] sm:inline-flex")}
                 >
                   Criar conta
                 </Link>
@@ -600,7 +602,12 @@ export default async function LandingPage({
           <p>
             {settings.siteName} · {settings.tagline}
           </p>
-          <p>Bom jogo.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/termos" className="font-medium text-muted transition hover:text-ink">
+              Termos de uso
+            </Link>
+            <p>Bom jogo.</p>
+          </div>
         </div>
       </footer>
     </div>

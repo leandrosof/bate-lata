@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { settings } from "@/db/schema";
 import { getSessionUser } from "@/lib/session";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 20 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 
 export async function GET() {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Selecione uma imagem." }, { status: 400 });
   }
   if (file.size > MAX_BYTES) {
-    return Response.json({ error: "A imagem deve ter no máximo 2 MB." }, { status: 413 });
+    return Response.json({ error: "A imagem é muito grande. Envie um arquivo de até 20 MB." }, { status: 413 });
   }
   if (!ALLOWED.has(file.type)) {
     return Response.json({ error: "Formato inválido." }, { status: 415 });
@@ -51,10 +51,10 @@ export async function POST(request: Request) {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const sharp = (await import("sharp")).default;
-    const output = await sharp(buffer, { limitInputPixels: 24_000_000 })
+    const output = await sharp(buffer, { limitInputPixels: 40_000_000 })
       .rotate()
       .resize(512, 512, { fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 90 })
+      .webp({ quality: 82 })
       .toBuffer();
 
     await db

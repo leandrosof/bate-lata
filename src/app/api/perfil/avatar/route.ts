@@ -5,7 +5,7 @@ import { users } from "@/db/schema";
 import { getAvatarCropGeometry } from "@/lib/avatar-crop";
 import { getSessionUser } from "@/lib/session";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 20 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 
 function clamp(value: number, min: number, max: number): number {
@@ -26,7 +26,7 @@ async function renderCropped(original: Buffer, x: number, y: number, zoom: numbe
   return sharp(original)
     .extract({ left, top, width: size, height: size })
     .resize(256, 256)
-    .webp({ quality: 84 })
+    .webp({ quality: 82 })
     .toBuffer();
 }
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Selecione uma imagem." }, { status: 400 });
   }
   if (file.size > MAX_BYTES) {
-    return Response.json({ error: "A imagem deve ter no máximo 2 MB." }, { status: 413 });
+    return Response.json({ error: "A imagem é muito grande. Envie um arquivo de até 20 MB." }, { status: 413 });
   }
   if (!ALLOWED.has(file.type)) {
     return Response.json({ error: "Formato inválido. Use JPG, PNG, WebP ou AVIF." }, { status: 415 });
@@ -55,10 +55,10 @@ export async function POST(request: Request) {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const sharp = (await import("sharp")).default;
-    const original = await sharp(buffer, { limitInputPixels: 24_000_000 })
+    const original = await sharp(buffer, { limitInputPixels: 40_000_000 })
       .rotate()
-      .resize({ width: 2000, height: 2000, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 90 })
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 82 })
       .toBuffer();
     const output = await renderCropped(original, 0.5, 0.5, 1);
 

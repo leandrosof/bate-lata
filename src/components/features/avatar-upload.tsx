@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AvatarCropDialog } from "@/components/features/avatar-crop-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
+import { compressImageFile } from "@/lib/image-compression";
 
 export function AvatarUpload({
   userId,
@@ -28,15 +29,17 @@ export function AvatarUpload({
   const [cropOpen, setCropOpen] = useState(false);
 
   async function upload(file: File) {
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ tone: "error", message: "A imagem deve ter no máximo 2 MB." });
-      return;
-    }
-
     setBusy("upload");
     try {
+      const optimized = await compressImageFile(file, {
+        maxWidth: 2000,
+        maxHeight: 2000,
+        targetBytes: 2.5 * 1024 * 1024,
+        quality: 0.86,
+      }).catch(() => file);
+
       const body = new FormData();
-      body.append("avatar", file);
+      body.append("avatar", optimized);
       const response = await fetch("/api/perfil/avatar", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
@@ -111,7 +114,9 @@ export function AvatarUpload({
           </Button>
         </div>
       </div>
-      <p className="text-[11px] text-muted">JPG, PNG, WebP ou AVIF · até 2 MB. A imagem é recortada em 256×256.</p>
+      <p className="text-[11px] text-muted">
+        JPG, PNG, WebP ou AVIF. Imagens grandes são otimizadas automaticamente e recortadas em 256×256.
+      </p>
       <AvatarCropDialog
         open={cropOpen}
         onClose={() => setCropOpen(false)}

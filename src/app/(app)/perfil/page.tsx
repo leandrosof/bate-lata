@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, KeyRound, LogOut, ShieldCheck, Trophy, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarDays, KeyRound, LogOut, ShieldCheck, Trophy, UserRound } from "lucide-react";
 import { changePasswordAction, logoutEverywhereAction, updateProfileAction } from "@/actions/profile";
 import { AvatarUpload } from "@/components/features/avatar-upload";
+import { DeleteAccountDialog } from "@/components/features/delete-account-dialog";
 import { ActionForm } from "@/components/ui/action-form";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -256,6 +257,20 @@ export default async function ProfilePage() {
                 icon={<LogOut className="h-4 w-4" aria-hidden />}
               />
             </form>
+          </CardBody>
+        </Card>
+
+        <Card className="border-[rgba(240,82,82,0.25)]">
+          <CardHeader>
+            <CardTitle>Zona de perigo</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-danger" aria-hidden />
+          </CardHeader>
+          <CardBody className="space-y-3 pt-2">
+            <p className="text-sm text-muted">
+              Excluir a conta remove seus dados pessoais, encerra suas sessões e desativa o acesso. O
+              histórico de partidas do grupo é preservado de forma anônima.
+            </p>
+            <DeleteAccountDialog />
           </CardBody>
         </Card>
       </div>

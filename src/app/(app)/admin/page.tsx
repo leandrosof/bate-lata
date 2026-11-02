@@ -46,6 +46,7 @@ const actionLabels: Record<string, string> = {
   "player.activate": "reativou um jogador",
   "player.deactivate": "desativou um jogador",
   "player.reset-link": "gerou link de redefinição",
+  "account.delete": "excluiu a própria conta",
   "settings.update": "atualizou as configurações",
   "season.create": "criou uma temporada",
   "season.update": "editou uma temporada",

@@ -1,3 +1,4 @@
+import { randomFillSync } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
@@ -298,18 +299,21 @@ test("perfil: editar dados e enviar foto", async ({ page }) => {
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(page.getByText("Perfil atualizado.")).toBeVisible();
 
-  const avatar = await sharp({
-    create: { width: 64, height: 64, channels: 3, background: "#2f6bff" },
+  const avatarPixels = Buffer.alloc(1400 * 1400 * 3);
+  randomFillSync(avatarPixels);
+  const avatar = await sharp(avatarPixels, {
+    raw: { width: 1400, height: 1400, channels: 3 },
   })
     .png()
     .toBuffer();
+  expect(avatar.length).toBeGreaterThan(2 * 1024 * 1024);
 
   await page.setInputFiles('input[type="file"]', {
     name: "avatar.png",
     mimeType: "image/png",
     buffer: avatar,
   });
-  await expect(page.getByText("Foto atualizada.")).toBeVisible();
+  await expect(page.getByText("Foto atualizada.")).toBeVisible({ timeout: 30_000 });
 
   const image = page.locator('img[alt^="Foto de"]').first();
   const src = await image.getAttribute("src");
@@ -318,6 +322,49 @@ test("perfil: editar dados e enviar foto", async ({ page }) => {
   const response = await page.request.get(src!.split("?")[0]);
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toContain("image/webp");
+});
+
+test("visitante mobile abre o menu de acesso e os termos", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Abrir opções de acesso" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Acessar o grupo" });
+  await expect(dialog.getByRole("link", { name: "Entrar" })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Criar conta" })).toBeVisible();
+
+  await dialog.getByRole("link", { name: "Termos de uso" }).click();
+  await expect(page).toHaveURL(/\/termos$/);
+  await expect(page.getByRole("heading", { name: "Termos de Uso", level: 1 })).toBeVisible();
+});
+
+test("jogador exclui a própria conta e perde o acesso", async ({ page }) => {
+  const email = `excluir-${Date.now()}@arena.local`;
+  const password = "Excluir@2026";
+
+  await page.goto("/cadastro");
+  await page.locator("#name").fill("Jogador Excluir");
+  await page.locator("#email").fill(email);
+  await page.locator("#password").fill(password);
+  await page.locator("#confirmPassword").fill(password);
+  await page.getByRole("button", { name: "Criar minha conta" }).click();
+  await expect(page).toHaveURL(/\/inicio$/, { timeout: 20_000 });
+
+  await page.goto("/perfil");
+  await page.getByRole("button", { name: "Excluir minha conta" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Excluir minha conta" });
+  await dialog.locator('input[name="password"]').fill(password);
+  await dialog.getByRole("button", { name: "Excluir minha conta" }).click();
+
+  await expect(page).toHaveURL(/\/entrar\?conta=excluida/, { timeout: 20_000 });
+  await expect(page.getByText(/Sua conta foi excluída/)).toBeVisible();
+
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByText("E-mail ou senha inválidos.")).toBeVisible();
 });
 
 test.describe("celular", () => {

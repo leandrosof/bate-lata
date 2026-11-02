@@ -18,6 +18,7 @@ export default async function LoginPage({
   const next = typeof params.next === "string" ? params.next : undefined;
   if (user) redirect(safeNextPath(next));
   const changed = params.senha === "alterada";
+  const deleted = params.conta === "excluida";
 
   return (
     <div className="card p-5 sm:p-7">
@@ -32,6 +33,13 @@ export default async function LoginPage({
       {changed ? (
         <Alert tone="success" className="mt-4">
           Senha alterada com sucesso. Entre com a nova senha.
+        </Alert>
+      ) : null}
+
+      {deleted ? (
+        <Alert tone="success" className="mt-4">
+          Sua conta foi excluída e seus dados pessoais foram removidos. O histórico do grupo foi
+          preservado de forma anônima.
         </Alert>
       ) : null}
 

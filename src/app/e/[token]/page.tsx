@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, MapPin, Trophy, Users } from "lucide-react";
 import { AttendanceControls } from "@/components/features/attendance-controls";
+import { PublicAuthMenu } from "@/components/features/public-auth-menu";
 import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
 import { ShareEventButton } from "@/components/features/share-event-button";
 import { SurfaceBadge } from "@/components/features/surface-badge";
@@ -69,12 +70,19 @@ export default async function PublicEventPage({
               </Link>
             ) : (
               <>
-                <Link href="/entrar" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+                <PublicAuthMenu
+                  loginHref={`/entrar?next=${encodeURIComponent(`/e/${token}`)}`}
+                  registerHref={`/cadastro?next=${encodeURIComponent(`/e/${token}`)}`}
+                />
+                <Link
+                  href="/entrar"
+                  className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")}
+                >
                   Entrar
                 </Link>
                 <Link
                   href={`/cadastro?next=${encodeURIComponent(`/e/${token}`)}`}
-                  className={cn(buttonVariants({ variant: "primary", size: "sm" }))}
+                  className={cn(buttonVariants({ variant: "primary", size: "sm" }), "hidden sm:inline-flex")}
                 >
                   Criar conta
                 </Link>
@@ -334,10 +342,15 @@ export default async function PublicEventPage({
           <p>
             {settings.siteName} · {settings.tagline}
           </p>
-          <Link href="/" className="font-semibold text-brand hover:text-ink">
-            Ver todos os jogos
-            <ArrowRight className="ml-1 inline h-3.5 w-3.5" aria-hidden />
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/termos" className="font-medium text-muted transition hover:text-ink">
+              Termos de uso
+            </Link>
+            <Link href="/" className="font-semibold text-brand hover:text-ink">
+              Ver todos os jogos
+              <ArrowRight className="ml-1 inline h-3.5 w-3.5" aria-hidden />
+            </Link>
+          </div>
         </footer>
       </main>
     </div>

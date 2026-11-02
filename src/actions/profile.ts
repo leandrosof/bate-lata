@@ -1,9 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
+import { and, count, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { passwordResetTokens, users } from "@/db/schema";
 import {
   AppError,
   actionFailure,
@@ -13,9 +14,10 @@ import {
   type ActionState,
   zodFieldErrors,
 } from "@/lib/action";
+import { recordAudit } from "@/lib/audit";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, destroySession, getSessionUser, revokeAllSessions } from "@/lib/session";
-import { changePasswordSchema, updateProfileSchema } from "@/lib/validations";
+import { changePasswordSchema, deleteAccountSchema, updateProfileSchema } from "@/lib/validations";
 
 export async function updateProfileAction(
   _state: ActionState,
@@ -95,12 +97,75 @@ export async function removeAvatarAction(): Promise<ActionState> {
   }
 }
 
-export async function deleteAccountAction(): Promise<ActionState> {
+export async function deleteAccountAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const actor = await getSessionUser();
   if (!actor) return fail("Sua sessão expirou. Entre novamente.");
-  return fail(
-    "Para excluir sua conta, peça a um administrador para desativar seu acesso. O histórico do grupo é preservado.",
-  );
+
+  const parsed = deleteAccountSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return fail(firstZodMessage(parsed.error), zodFieldErrors(parsed.error));
+  }
+
+  const valid = await verifyPassword(parsed.data.password, actor.passwordHash);
+  if (!valid) {
+    return fail("Senha incorreta.", { password: ["Senha incorreta."] });
+  }
+
+  try {
+    if (actor.role === "ADMIN") {
+      const [otherAdmins] = await db
+        .select({ total: count() })
+        .from(users)
+        .where(and(eq(users.role, "ADMIN"), eq(users.active, true), ne(users.id, actor.id)));
+      if (Number(otherAdmins?.total ?? 0) === 0) {
+        throw new AppError(
+          "Você é o único administrador ativo. Promova outra pessoa antes de excluir sua conta.",
+        );
+      }
+    }
+
+    const unusablePassword = await hashPassword(randomBytes(32).toString("base64url"));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({
+          name: "Conta excluída",
+          email: `excluido-${actor.id}@bate-lata.invalid`,
+          passwordHash: unusablePassword,
+          role: "PLAYER",
+          nickname: null,
+          avatarData: null,
+          avatarMime: null,
+          avatarOriginalData: null,
+          avatarOriginalMime: null,
+          avatarUpdatedAt: null,
+          active: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, actor.id));
+
+      await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, actor.id));
+    });
+
+    await revokeAllSessions(actor.id);
+    await destroySession();
+    await recordAudit({
+      actorId: actor.id,
+      action: "account.delete",
+      entity: "user",
+      entityId: actor.id,
+    });
+    revalidatePath("/", "layout");
+  } catch (error) {
+    return actionFailure(error);
+  }
+
+  const { redirect } = await import("next/navigation");
+  redirect("/entrar?conta=excluida");
+  return null;
 }
 
 export async function logoutEverywhereAction(): Promise<void> {

@@ -30,6 +30,14 @@ export default async function RegisterPage({
         <RegisterForm next={next} />
       </div>
 
+      <p className="mt-3 text-center text-xs leading-relaxed text-muted">
+        Ao criar sua conta, você concorda com os{" "}
+        <Link href="/termos" className="font-semibold text-brand hover:text-ink">
+          Termos de Uso
+        </Link>
+        .
+      </p>
+
       <div className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
         Já tem conta?{" "}
         <Link href={`/entrar${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-brand hover:text-ink">
