@@ -21,6 +21,7 @@ async function run() {
     "announcements",
     "attendances",
     "password_reset_tokens",
+    "email_verification_tokens",
     "sessions",
     "events",
     "seasons",

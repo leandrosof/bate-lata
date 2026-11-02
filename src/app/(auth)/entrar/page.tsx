@@ -19,6 +19,7 @@ export default async function LoginPage({
   if (user) redirect(safeNextPath(next));
   const changed = params.senha === "alterada";
   const deleted = params.conta === "excluida";
+  const verified = params.verificado === "1";
 
   return (
     <div className="card p-5 sm:p-7">
@@ -43,9 +44,22 @@ export default async function LoginPage({
         </Alert>
       ) : null}
 
+      {verified ? (
+        <Alert tone="success" className="mt-4">
+          E-mail confirmado com sucesso. Agora você já pode entrar.
+        </Alert>
+      ) : null}
+
       <div className="mt-5">
         <LoginForm next={next} />
       </div>
+
+      <p className="mt-3 text-center text-xs text-muted">
+        Não recebeu a confirmação?{" "}
+        <Link href="/verificar-email" className="font-semibold text-brand hover:text-ink">
+          Reenviar e-mail
+        </Link>
+      </p>
 
       <div className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
         Ainda não tem conta?{" "}

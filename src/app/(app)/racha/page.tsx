@@ -36,6 +36,7 @@ import { CloseCourtDialog } from "@/components/features/close-court-dialog";
 import { EventPicker } from "@/components/features/event-picker";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { QueueSwapDialog } from "@/components/features/queue-swap-dialog";
+import { GameDurationBadge } from "@/components/features/game-duration";
 import { DrawStatusBadge } from "@/components/features/status-badge";
 import { TeamCard, TeamPill } from "@/components/features/team-card";
 import { ActionButton } from "@/components/ui/action-button";
@@ -352,9 +353,16 @@ export default async function RachaPage({
                         {game.status === "IN_PROGRESS" ? "Partida atual" : "Próxima partida"}
                       </CardTitle>
                     </div>
-                    <Badge tone={game.status === "IN_PROGRESS" ? "live" : "warning"}>
-                      {game.status === "IN_PROGRESS" ? "Ao vivo" : "Pronta"}
-                    </Badge>
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      <GameDurationBadge
+                        startedAt={game.startedAt}
+                        finishedAt={game.finishedAt}
+                        live={game.status === "IN_PROGRESS"}
+                      />
+                      <Badge tone={game.status === "IN_PROGRESS" ? "live" : "warning"}>
+                        {game.status === "IN_PROGRESS" ? "Ao vivo" : "Pronta"}
+                      </Badge>
+                    </div>
                   </CardHeader>
                   <CardBody className="space-y-3 pt-2">
                     <div className="rounded-2xl border border-line bg-surface-2/60 p-3 backdrop-blur-sm sm:p-4">
@@ -806,6 +814,7 @@ export default async function RachaPage({
                             {match.scoreA} × {match.scoreB}
                           </span>
                           <TeamPill name={match.teamBName} color={match.teamBColor} />
+                          <GameDurationBadge startedAt={match.startedAt} finishedAt={match.finishedAt} />
                           <span className="ml-auto text-xs text-muted">
                             venceu{" "}
                             <span className="font-semibold text-ink">

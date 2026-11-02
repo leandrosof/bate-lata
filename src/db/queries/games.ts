@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../client";
 import { drawTeams, events, gamePlayers, games, scoreEvents, users } from "../schema";
@@ -98,6 +98,35 @@ export async function listFinishedGames(limit = 30, offset = 0): Promise<GameWit
     .limit(limit)
     .offset(offset);
   return hydrate(rows);
+}
+
+export async function getGameDurationStats(): Promise<{
+  averageSeconds: number | null;
+  totalSeconds: number;
+  count: number;
+}> {
+  const [row] = await db
+    .select({
+      count: count(),
+      averageSeconds: sql<number | null>`avg(extract(epoch from (${games.finishedAt} - ${games.startedAt})))`,
+      totalSeconds: sql<number | null>`sum(extract(epoch from (${games.finishedAt} - ${games.startedAt})))`,
+    })
+    .from(games)
+    .where(
+      and(
+        eq(games.status, "FINISHED"),
+        isNotNull(games.startedAt),
+        isNotNull(games.finishedAt),
+        gte(games.finishedAt, games.startedAt),
+      ),
+    );
+
+  const total = Number(row?.count ?? 0);
+  return {
+    averageSeconds: row?.averageSeconds == null ? null : Number(row.averageSeconds),
+    totalSeconds: Number(row?.totalSeconds ?? 0),
+    count: total,
+  };
 }
 
 export async function listEventGames(eventId: string): Promise<GameWithTeams[]> {

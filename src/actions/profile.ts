@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { and, count, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
-import { passwordResetTokens, users } from "@/db/schema";
+import { emailVerificationTokens, passwordResetTokens, users } from "@/db/schema";
 import {
   AppError,
   actionFailure,
@@ -17,7 +17,12 @@ import {
 import { recordAudit } from "@/lib/audit";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, destroySession, getSessionUser, revokeAllSessions } from "@/lib/session";
-import { changePasswordSchema, deleteAccountSchema, updateProfileSchema } from "@/lib/validations";
+import {
+  changePasswordSchema,
+  deleteAccountSchema,
+  emailPreferencesSchema,
+  updateProfileSchema,
+} from "@/lib/validations";
 
 export async function updateProfileAction(
   _state: ActionState,
@@ -41,6 +46,33 @@ export async function updateProfileAction(
 
     revalidatePath("/", "layout");
     return success("Perfil atualizado.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function updateEmailPreferencesAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const actor = await getSessionUser();
+  if (!actor) return fail("Sua sessão expirou. Entre novamente.");
+
+  const parsed = emailPreferencesSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  try {
+    await db
+      .update(users)
+      .set({ emailNotifications: parsed.data.emailNotifications, updatedAt: new Date() })
+      .where(eq(users.id, actor.id));
+
+    revalidatePath("/", "layout");
+    return success(
+      parsed.data.emailNotifications
+        ? "Preferência salva: você receberá avisos por e-mail."
+        : "Preferência salva: avisos por e-mail desativados.",
+    );
   } catch (error) {
     return actionFailure(error);
   }
@@ -142,12 +174,14 @@ export async function deleteAccountAction(
           avatarOriginalData: null,
           avatarOriginalMime: null,
           avatarUpdatedAt: null,
+          emailNotifications: false,
           active: false,
           updatedAt: new Date(),
         })
         .where(eq(users.id, actor.id));
 
       await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, actor.id));
+      await tx.delete(emailVerificationTokens).where(eq(emailVerificationTokens.userId, actor.id));
     });
 
     await revokeAllSessions(actor.id);

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { adjustScoreAction, cancelGameAction, finishGameAction, correctResultAction, setScoreAction } from "@/actions/games";
 import { AutoRefresh } from "@/components/features/auto-refresh";
+import { GameDurationBadge } from "@/components/features/game-duration";
 import { GameStatusBadge } from "@/components/features/status-badge";
 import { TeamPill } from "@/components/features/team-card";
 import { ActionButton } from "@/components/ui/action-button";
@@ -190,6 +191,11 @@ export default async function MatchesPage({
                     Fim {formatTime(game.finishedAt, settings.timezone)}
                   </span>
                 ) : null}
+                <GameDurationBadge
+                  startedAt={game.startedAt}
+                  finishedAt={game.finishedAt}
+                  live={game.status === "IN_PROGRESS"}
+                />
                 <span className="flex items-center gap-1.5">
                   <Wifi className="h-3.5 w-3.5" aria-hidden />
                   Placar salvo automaticamente
@@ -433,8 +439,11 @@ export default async function MatchesPage({
                     href={`/partidas?jogo=${game.id}`}
                     className="card group block p-4 transition hover:border-[rgba(240,82,82,0.35)]"
                   >
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <GameStatusBadge status={game.status} />
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <GameStatusBadge status={game.status} />
+                        <GameDurationBadge startedAt={game.startedAt} finishedAt={game.finishedAt} live />
+                      </div>
                       <span className="text-[11px] uppercase tracking-wider text-muted">
                         {game.eventTitle} · {formatTime(game.startedAt ?? game.createdAt, settings.timezone)}
                       </span>
@@ -487,6 +496,7 @@ export default async function MatchesPage({
                     <p className="font-display text-xl font-semibold tabular-nums text-ink">
                       {game.scoreA} <span className="text-muted/50">:</span> {game.scoreB}
                     </p>
+                    <GameDurationBadge startedAt={game.startedAt} finishedAt={game.finishedAt} />
                     <ArrowRight className="h-4 w-4 text-muted" aria-hidden />
                   </Link>
                 ))}

@@ -4,6 +4,8 @@ import {
   daysUntil,
   formatDateShort,
   formatDateTime,
+  formatDurationSeconds,
+  formatGameDuration,
   monthRange,
   parseLocalDate,
   parseLocalDateTime,
@@ -54,5 +56,36 @@ describe("formatação", () => {
 
   it("interpreta datas simples", () => {
     expect(parseLocalDate("2026-03-01", TZ)?.toISOString()).toBe("2026-03-01T03:00:00.000Z");
+  });
+});
+
+describe("duração de partida", () => {
+  it("formata segundos em minutos e horas", () => {
+    expect(formatDurationSeconds(30)).toBe("menos de 1 min");
+    expect(formatDurationSeconds(42 * 60)).toBe("42 min");
+    expect(formatDurationSeconds(67 * 60)).toBe("1h 07min");
+    expect(formatDurationSeconds(120 * 60)).toBe("2h");
+  });
+
+  it("calcula a duração entre início e fim", () => {
+    const start = new Date("2026-11-01T19:00:00.000Z");
+    const end = new Date("2026-11-01T19:42:00.000Z");
+    expect(formatGameDuration(start, end)).toBe("42 min");
+  });
+
+  it("usa o horário atual em partida ao vivo", () => {
+    const start = new Date("2026-11-01T19:00:00.000Z");
+    const now = new Date("2026-11-01T19:18:00.000Z");
+    expect(formatGameDuration(start, null, now)).toBe("18 min");
+  });
+
+  it("retorna null para dados ausentes ou inválidos", () => {
+    expect(formatGameDuration(null, new Date())).toBeNull();
+    expect(
+      formatGameDuration(
+        new Date("2026-11-01T19:42:00.000Z"),
+        new Date("2026-11-01T19:00:00.000Z"),
+      ),
+    ).toBeNull();
   });
 });

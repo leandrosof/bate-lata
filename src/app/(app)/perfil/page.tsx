@@ -1,6 +1,11 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CalendarDays, KeyRound, LogOut, ShieldCheck, Trophy, UserRound } from "lucide-react";
-import { changePasswordAction, logoutEverywhereAction, updateProfileAction } from "@/actions/profile";
+import { AlertTriangle, ArrowRight, CalendarDays, KeyRound, LogOut, Mail, ShieldCheck, Trophy, UserRound } from "lucide-react";
+import {
+  changePasswordAction,
+  logoutEverywhereAction,
+  updateEmailPreferencesAction,
+  updateProfileAction,
+} from "@/actions/profile";
 import { AvatarUpload } from "@/components/features/avatar-upload";
 import { DeleteAccountDialog } from "@/components/features/delete-account-dialog";
 import { ActionForm } from "@/components/ui/action-form";
@@ -9,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, Switch } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -237,6 +242,25 @@ export default async function ProfilePage() {
                 })}
               </ul>
             )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Comunicação</CardTitle>
+            <Mail className="h-4 w-4 text-muted" aria-hidden />
+          </CardHeader>
+          <CardBody className="space-y-3 pt-2">
+            <ActionForm action={updateEmailPreferencesAction} submitLabel="Salvar preferências">
+              <div key={`email-prefs-${user.id}-${user.updatedAt.getTime()}`}>
+                <Switch
+                  name="emailNotifications"
+                  label="Receber e-mails de novos jogos, avisos e lembretes"
+                  description="E-mails de segurança, confirmação de presença e alterações de conta continuam sendo enviados."
+                  defaultChecked={user.emailNotifications}
+                />
+              </div>
+            </ActionForm>
           </CardBody>
         </Card>
 

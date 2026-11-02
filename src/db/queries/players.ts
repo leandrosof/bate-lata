@@ -12,6 +12,8 @@ export async function listAllPlayers() {
       email: users.email,
       role: users.role,
       active: users.active,
+      emailVerifiedAt: users.emailVerifiedAt,
+      emailNotifications: users.emailNotifications,
       avatarUpdatedAt: users.avatarUpdatedAt,
       createdAt: users.createdAt,
     })

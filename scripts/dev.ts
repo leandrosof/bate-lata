@@ -37,6 +37,12 @@ if (!useExternalDatabase) {
 if (isE2E) {
   env.OUTBOX_DIR = ".data/e2e/outbox";
   env.NEXT_DIST_DIR = ".next-e2e";
+  env.RESEND_API_KEY = "";
+  env.SMTP_URL = "";
+  env.SMTP_HOST = "";
+  env.SMTP_PORT = "";
+  env.SMTP_USER = "";
+  env.SMTP_PASS = "";
 }
 
 const tsxBin = "node_modules/tsx/dist/cli.mjs";

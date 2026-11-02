@@ -46,6 +46,8 @@ export const users = pgTable(
     avatarOriginalData: bytea("avatar_original_data"),
     avatarOriginalMime: text("avatar_original_mime"),
     avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    emailNotifications: boolean("email_notifications").notNull().default(true),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -89,6 +91,25 @@ export const passwordResetTokens = pgTable(
   (table) => [
     uniqueIndex("password_reset_token_hash_unique").on(table.tokenHash),
     index("password_reset_user_idx").on(table.userId),
+  ],
+);
+
+export const emailVerificationTokens = pgTable(
+  "email_verification_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tokenHash: text("token_hash").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    requestedIp: text("requested_ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("email_verification_token_hash_unique").on(table.tokenHash),
+    index("email_verification_user_idx").on(table.userId),
   ],
 );
 
@@ -373,6 +394,7 @@ export const auditLogs = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   attendances: many(attendances),
   sessions: many(sessions),
+  emailVerificationTokens: many(emailVerificationTokens),
 }));
 
 export const eventsRelations = relations(events, ({ many }) => ({

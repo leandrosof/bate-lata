@@ -28,6 +28,7 @@ async function run() {
     "announcements",
     "attendances",
     "password_reset_tokens",
+    "email_verification_tokens",
     "sessions",
     "events",
     "seasons",
@@ -69,7 +70,14 @@ async function run() {
 
     const insertedUsers = await db
       .insert(schema.users)
-      .values(people.map((person) => ({ ...person, passwordHash })))
+      .values(
+        people.map((person) => ({
+          ...person,
+          passwordHash,
+          emailVerifiedAt: new Date(),
+          emailNotifications: true,
+        })),
+      )
       .returning({ id: schema.users.id, name: schema.users.name, email: schema.users.email });
 
     const byEmail = new Map(insertedUsers.map((user) => [user.email, user]));

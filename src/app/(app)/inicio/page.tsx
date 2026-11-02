@@ -20,6 +20,7 @@ import { AttendanceControls } from "@/components/features/attendance-controls";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { ShareEventButton } from "@/components/features/share-event-button";
 import { AutoRefresh } from "@/components/features/auto-refresh";
+import { GameDurationBadge } from "@/components/features/game-duration";
 import { EventStatusBadge, GameStatusBadge } from "@/components/features/status-badge";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { TeamPill } from "@/components/features/team-card";
@@ -115,6 +116,13 @@ export default async function HomePage() {
               <div className="min-w-0 flex-1">
                 <TeamPill name={liveGame.teamBName} color={liveGame.teamBColor} />
               </div>
+            </div>
+            <div className="flex justify-center">
+              <GameDurationBadge
+                startedAt={liveGame.startedAt}
+                finishedAt={liveGame.finishedAt}
+                live
+              />
             </div>
             {activeHours >= 6 ? (
               <p className="text-center text-[11px] uppercase tracking-wider text-warning">

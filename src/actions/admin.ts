@@ -14,11 +14,21 @@ import {
   type ActionState,
   zodFieldErrors,
 } from "@/lib/action";
+import { listEmailRecipients, listEventEmailRecipients } from "@/db/queries/email";
 import { recordAudit } from "@/lib/audit";
-import { passwordResetEmail, sendEmail } from "@/lib/email";
+import {
+  announcementEmail,
+  eventCancelledEmail,
+  newEventEmail,
+  passwordResetEmail,
+  roleChangedEmail,
+  sendEmail,
+} from "@/lib/email";
+import { queueEmail, queueEmails } from "@/lib/notify";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
-import { parseLocalDate, parseLocalDateTime } from "@/lib/time";
+import { surfaceLabel } from "@/lib/surface";
+import { formatDateLong, formatTime, parseLocalDate, parseLocalDateTime } from "@/lib/time";
 import { absoluteUrl, normalizeEmail } from "@/lib/utils";
 import {
   announcementIdSchema,
@@ -57,13 +67,14 @@ export async function createEventAction(
       throw new AppError("O horário de término deve ser depois do início.");
     }
 
+    const publicToken = randomBytes(6).toString("hex");
     const [created] = await db
       .insert(events)
       .values({
         title: parsed.data.title.trim(),
         startsAt,
         endsAt,
-        publicToken: randomBytes(6).toString("hex"),
+        publicToken,
         venueName: parsed.data.venueName.trim(),
         address: parsed.data.address?.trim() || null,
         surface: parsed.data.surface,
@@ -82,6 +93,31 @@ export async function createEventAction(
       entityId: created.id,
       details: { title: parsed.data.title, startsAt: startsAt.toISOString() },
     });
+
+    try {
+      const recipients = await listEmailRecipients(actor.id);
+      const startsAtLabel = `${formatDateLong(startsAt, currentSettings.timezone)} às ${formatTime(
+        startsAt,
+        currentSettings.timezone,
+      )}`;
+      const link = absoluteUrl(`/e/${publicToken}`);
+      queueEmails(
+        recipients.map((recipient) => ({
+          to: recipient.email,
+          ...newEventEmail({
+            name: recipient.name,
+            siteName: currentSettings.siteName,
+            eventTitle: parsed.data.title.trim(),
+            startsAtLabel,
+            venueName: parsed.data.venueName.trim(),
+            surfaceLabel: surfaceLabel(parsed.data.surface) ?? undefined,
+            link,
+          }),
+        })),
+      );
+    } catch (error) {
+      console.error("[email] falha ao preparar aviso de novo evento", error);
+    }
 
     revalidatePath("/", "layout");
     return success("Evento criado.");
@@ -170,7 +206,11 @@ export async function setEventStatusAction(
         updatedAt: new Date(),
       })
       .where(eq(events.id, eventId))
-      .returning({ id: events.id, title: events.title });
+      .returning({
+        id: events.id,
+        title: events.title,
+        startsAt: events.startsAt,
+      });
 
     if (!updated[0]) throw new AppError("Evento não encontrado.");
 
@@ -181,6 +221,32 @@ export async function setEventStatusAction(
       entityId: eventId,
       details: { status },
     });
+
+    if (status === "CANCELLED") {
+      try {
+        const currentSettings = await getSettings();
+        const recipients = await listEventEmailRecipients(eventId);
+        const startsAtLabel = `${formatDateLong(
+          updated[0].startsAt,
+          currentSettings.timezone,
+        )} às ${formatTime(updated[0].startsAt, currentSettings.timezone)}`;
+        const link = absoluteUrl("/");
+        queueEmails(
+          recipients.map((recipient) => ({
+            to: recipient.email,
+            ...eventCancelledEmail({
+              name: recipient.name,
+              siteName: currentSettings.siteName,
+              eventTitle: updated[0].title,
+              startsAtLabel,
+              link,
+            }),
+          })),
+        );
+      } catch (error) {
+        console.error("[email] falha ao preparar aviso de cancelamento", error);
+      }
+    }
 
     revalidatePath("/", "layout");
     const labels: Record<string, string> = {
@@ -222,6 +288,26 @@ export async function createAnnouncementAction(
       entity: "announcement",
       entityId: created.id,
     });
+
+    try {
+      const currentSettings = await getSettings();
+      const recipients = await listEmailRecipients(actor.id);
+      const link = absoluteUrl("/inicio");
+      queueEmails(
+        recipients.map((recipient) => ({
+          to: recipient.email,
+          ...announcementEmail({
+            name: recipient.name,
+            siteName: currentSettings.siteName,
+            title: parsed.data.title.trim(),
+            body: parsed.data.body.trim(),
+            link,
+          }),
+        })),
+      );
+    } catch (error) {
+      console.error("[email] falha ao preparar aviso publicado", error);
+    }
 
     revalidatePath("/", "layout");
     return success("Aviso publicado.");
@@ -485,7 +571,10 @@ export async function managePlayerAction(
         entityId: target.id,
       });
 
-      return success(`Link de redefinição gerado para ${normalizeEmail(target.email)}. Envie manualmente: ${link}`);
+      const emailAddress = normalizeEmail(target.email);
+      const message = `Link de redefinição gerado para ${emailAddress}.`;
+      success(message);
+      return { ok: true, message, values: { resetLink: link, resetEmail: emailAddress } };
     }
 
     if (action === "promote" || action === "demote") {
@@ -511,6 +600,24 @@ export async function managePlayerAction(
         entity: "user",
         entityId: target.id,
       });
+
+      if (target.emailVerifiedAt) {
+        try {
+          const currentSettings = await getSettings();
+          queueEmail({
+            to: target.email,
+            ...roleChangedEmail({
+              name: target.name,
+              siteName: currentSettings.siteName,
+              role: action === "promote" ? "ADMIN" : "PLAYER",
+              link: absoluteUrl("/inicio"),
+            }),
+          });
+        } catch (error) {
+          console.error("[email] falha ao preparar aviso de perfil", error);
+        }
+      }
+
       revalidatePath("/", "layout");
       return success(action === "promote" ? `${target.name} agora é administrador.` : `${target.name} agora é jogador.`);
     }

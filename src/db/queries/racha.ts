@@ -37,6 +37,8 @@ export type RachaGameView = {
   teamAPlayers: RachaGamePlayer[];
   teamBPlayers: RachaGamePlayer[];
   winnerTeamId: string | null;
+  startedAt: Date | null;
+  finishedAt: Date | null;
   canUndo: boolean;
 };
 
@@ -175,6 +177,8 @@ export async function getRachaView(eventId: string): Promise<RachaView> {
         .filter((player) => player.teamId === row.teamBId)
         .map((player) => ({ userId: player.userId, name: player.name })),
       winnerTeamId: row.winnerTeamId,
+      startedAt: row.startedAt,
+      finishedAt: row.finishedAt,
       canUndo:
         row.status === "FINISHED" &&
         Boolean(row.undoState) &&

@@ -33,6 +33,50 @@ async function confirmAction(page: Page) {
   await expect(dialog).toBeHidden();
 }
 
+async function waitForOutboxLink(page: Page, email: string, pathSegment: string) {
+  const outbox = path.join(process.cwd(), ".data", "e2e", "outbox");
+  const pattern = new RegExp(`https?://[^\\s"<]+/${pathSegment}/[A-Za-z0-9_-]+`);
+  let link: string | null = null;
+
+  for (let attempt = 0; attempt < 60 && !link; attempt += 1) {
+    if (fs.existsSync(outbox)) {
+      const files = fs
+        .readdirSync(outbox)
+        .filter((file) => file.endsWith(".txt"))
+        .sort()
+        .reverse();
+      for (const file of files) {
+        const content = fs.readFileSync(path.join(outbox, file), "utf8");
+        if (!content.includes(email)) continue;
+        const match = content.match(pattern);
+        if (match) {
+          link = match[0];
+          break;
+        }
+      }
+    }
+    if (!link) await page.waitForTimeout(250);
+  }
+
+  expect(link, `link ${pathSegment} não encontrado no outbox para ${email}`).not.toBeNull();
+  return link!;
+}
+
+async function registerAndVerify(page: Page, email: string, password: string, name: string) {
+  await page.goto("/cadastro");
+  await page.fill('input[name="name"]', name);
+  await page.fill('input[name="email"]', email);
+  await page.fill('input[name="password"]', password);
+  await page.fill('input[name="confirmPassword"]', password);
+  await page.getByRole("button", { name: "Criar minha conta" }).click();
+  await expect(page).toHaveURL(/\/verificar-email/, { timeout: 20_000 });
+
+  const link = await waitForOutboxLink(page, email, "verificar-email");
+  await page.goto(link);
+  await page.getByRole("button", { name: "Confirmar meu e-mail" }).click();
+  await expect(page).toHaveURL(/\/entrar\?verificado=1/, { timeout: 20_000 });
+}
+
 test("administrador entra e navega por todas as áreas", async ({ page }) => {
   await loginAdmin(page);
 
@@ -197,13 +241,8 @@ test("administrador cria evento e publica aviso", async ({ page }) => {
 });
 
 test("novo jogador se cadastra, confirma presença e não acessa administração", async ({ page }) => {
-  await page.goto("/cadastro");
-  await page.fill('input[name="name"]', "Novato E2E");
-  await page.fill('input[name="email"]', "novato@arena.local");
-  await page.fill('input[name="password"]', "Arena@2026");
-  await page.fill('input[name="confirmPassword"]', "Arena@2026");
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/\/inicio$/, { timeout: 20_000 });
+  await registerAndVerify(page, "novato@arena.local", "Arena@2026", "Novato E2E");
+  await login(page, "novato@arena.local", "Arena@2026");
   await expect(page.getByRole("heading", { name: /Novato/ })).toBeVisible();
 
   await expect(page.getByRole("link", { name: "Administração" })).toHaveCount(0);
@@ -324,6 +363,22 @@ test("perfil: editar dados e enviar foto", async ({ page }) => {
   expect(response.headers()["content-type"]).toContain("image/webp");
 });
 
+test("administrador gera link de redefinição copiável", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto("/admin/jogadores");
+
+  const card = page.locator("div.card").filter({ hasText: "Bruno Lima" }).first();
+  await card.getByText("Gerenciar acesso").click();
+  await card.getByRole("button", { name: "Gerar link de senha" }).click();
+
+  const link = card.getByLabel("Link de redefinição de senha");
+  await expect(link).toBeVisible();
+  await expect(link).toHaveValue(/\/redefinir-senha\//);
+
+  await card.getByRole("button", { name: "Copiar" }).click();
+  await expect(card.getByRole("button", { name: "Copiado!" })).toBeVisible();
+});
+
 test("visitante mobile abre o menu de acesso e os termos", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
@@ -343,13 +398,8 @@ test("jogador exclui a própria conta e perde o acesso", async ({ page }) => {
   const email = `excluir-${Date.now()}@arena.local`;
   const password = "Excluir@2026";
 
-  await page.goto("/cadastro");
-  await page.locator("#name").fill("Jogador Excluir");
-  await page.locator("#email").fill(email);
-  await page.locator("#password").fill(password);
-  await page.locator("#confirmPassword").fill(password);
-  await page.getByRole("button", { name: "Criar minha conta" }).click();
-  await expect(page).toHaveURL(/\/inicio$/, { timeout: 20_000 });
+  await registerAndVerify(page, email, password, "Jogador Excluir");
+  await login(page, email, password);
 
   await page.goto("/perfil");
   await page.getByRole("button", { name: "Excluir minha conta" }).click();

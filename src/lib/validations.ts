@@ -36,6 +36,10 @@ export const requestResetSchema = z.object({
   email: emailSchema,
 });
 
+export const verifyEmailSchema = z.object({
+  token: z.string().min(20, "Link inválido."),
+});
+
 export const resetPasswordSchema = z
   .object({
     token: z.string().min(20, "Link inválido."),
@@ -50,6 +54,10 @@ export const resetPasswordSchema = z
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome.").max(80, "Nome muito longo."),
   nickname: z.string().trim().max(30, "Apelido muito longo.").optional(),
+});
+
+export const emailPreferencesSchema = z.object({
+  emailNotifications: formBoolean.optional().default(false),
 });
 
 export const deleteAccountSchema = z.object({

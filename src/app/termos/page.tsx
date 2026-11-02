@@ -73,13 +73,17 @@ export default async function TermsPage() {
                 2. Sua conta
               </h2>
               <p>
-                Cada pessoa deve usar a própria conta. O e-mail é usado para login e recuperação de senha,
-                e a senha é armazenada com hash seguro. Não compartilhe sua senha e avise um administrador
-                se desconfiar de acesso indevido.
+                Cada pessoa deve usar a própria conta. O e-mail é usado para login, verificação e recuperação
+                de senha, e a senha é armazenada com hash seguro. Não compartilhe sua senha e avise um
+                administrador se desconfiar de acesso indevido.
               </p>
               <p>
-                Os administradores do grupo são definidos pelo próprio grupo e podem gerenciar acessos,
-                permissões e redefinições de senha.
+                O cadastro só é liberado após a confirmação do e-mail. Os administradores do grupo são
+                definidos pelo próprio grupo e podem gerenciar acessos, permissões e redefinições de senha.
+              </p>
+              <p>
+                Você pode desativar os e-mails de novos jogos, avisos e lembretes no seu perfil. E-mails de
+                segurança, confirmação de presença e alterações de conta continuam sendo enviados.
               </p>
             </section>
 

@@ -1,5 +1,6 @@
 import { Search, UserCog, UserMinus, UserPlus, Users } from "lucide-react";
 import { managePlayerAction } from "@/actions/admin";
+import { ResetPlayerLink } from "@/components/features/reset-player-link";
 import { Avatar } from "@/components/ui/avatar";
 import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
@@ -86,9 +87,13 @@ export default async function AdminPlayersPage({
                       <Badge tone={player.role === "ADMIN" ? "brand" : "neutral"}>
                         {player.role === "ADMIN" ? "Admin" : "Jogador"}
                       </Badge>
-                      <Badge tone={player.active ? "success" : "danger"}>
-                        {player.active ? "Ativo" : "Inativo"}
-                      </Badge>
+                      {player.emailVerifiedAt ? (
+                        <Badge tone={player.active ? "success" : "danger"}>
+                          {player.active ? "Ativo" : "Inativo"}
+                        </Badge>
+                      ) : (
+                        <Badge tone="warning">E-mail pendente</Badge>
+                      )}
                     </div>
                   </div>
 
@@ -139,18 +144,11 @@ export default async function AdminPlayersPage({
                         </ActionButton>
                       )}
 
-                      <ActionButton
-                        action={managePlayerAction}
-                        fields={{ userId: player.id, action: "reset-link" }}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        Gerar link de senha
-                      </ActionButton>
+                      <ResetPlayerLink userId={player.id} playerName={player.name} />
                     </div>
                     <p className="mt-2 text-[11px] text-muted">
-                      Ao gerar o link de redefinição, ele também é enviado para o e-mail do jogador. Se o envio de
-                      e-mail não estiver configurado, copie o link exibido e envie pelo WhatsApp.
+                      Ao gerar o link de redefinição, ele também é enviado para o e-mail do jogador. O link
+                      aparece abaixo do botão por 30 segundos para copiar e enviar pelo WhatsApp.
                     </p>
                   </Disclosure>
                 </CardBody>

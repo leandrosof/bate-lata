@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, ClipboardList, ShieldAlert, Trophy } from "lucide-react";
+import { ArrowRight, ClipboardList, Clock, ShieldAlert, Trophy } from "lucide-react";
 import { correctResultAction } from "@/actions/games";
+import { GameDurationBadge } from "@/components/features/game-duration";
 import { ActionForm } from "@/components/ui/action-form";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +11,12 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Label } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat";
 import { listAuditLogs } from "@/db/queries/audit";
-import { listFinishedGames } from "@/db/queries/games";
+import { getGameDurationStats, listFinishedGames } from "@/db/queries/games";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { formatDateTime } from "@/lib/time";
+import { formatDateTime, formatDurationSeconds } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Resultados" };
@@ -22,8 +24,13 @@ export const metadata = { title: "Resultados" };
 export default async function AdminResultsPage() {
   await requireAdmin();
   const settings = await getSettings();
-  const [games, audit] = await Promise.all([listFinishedGames(30), listAuditLogs(20)]);
+  const [games, audit, durationStats] = await Promise.all([
+    listFinishedGames(30),
+    listAuditLogs(20),
+    getGameDurationStats(),
+  ]);
   const corrections = audit.filter((entry) => entry.action === "game.correct");
+  const averageDuration = formatDurationSeconds(durationStats.averageSeconds);
 
   return (
     <div>
@@ -33,6 +40,20 @@ export default async function AdminResultsPage() {
         subtitle="Corrija partidas encerradas — o ranking é recalculado automaticamente."
         icon={<Trophy className="h-5 w-5" />}
       />
+
+      <div className="mb-4 max-w-sm">
+        <StatCard
+          label="Duração média"
+          value={averageDuration ?? "—"}
+          hint={
+            durationStats.count > 0
+              ? `${durationStats.count} partida${durationStats.count === 1 ? "" : "s"} com tempo registrado`
+              : "Sem partidas com duração registrada"
+          }
+          icon={<Clock className="h-4 w-4" />}
+          accent="brand"
+        />
+      </div>
 
       <Alert tone="info" className="mb-4">
         Só partidas com status <strong>Encerrada</strong> entram no ranking. A correção mantém auditoria de quem
@@ -84,6 +105,7 @@ export default async function AdminResultsPage() {
                     {game.winnerTeamId === game.teamAId ? game.teamAName : game.teamBName} venceu
                   </Badge>
                   <Badge>{game.teamAPlayers.length + game.teamBPlayers.length} jogadores</Badge>
+                  <GameDurationBadge startedAt={game.startedAt} finishedAt={game.finishedAt} />
                   {game.source === "TEAM_ROTATION" ? <Badge tone="brand">Rotação</Badge> : null}
                 </div>
 

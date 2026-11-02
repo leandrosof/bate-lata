@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, History, Trophy } from "lucide-react";
 import { correctResultAction } from "@/actions/games";
+import { GameDurationBadge } from "@/components/features/game-duration";
 import { GameStatusBadge } from "@/components/features/status-badge";
 import { ActionForm } from "@/components/ui/action-form";
 import { Alert } from "@/components/ui/alert";
@@ -82,6 +83,7 @@ export default async function HistoryPage({
                     <div className="flex flex-wrap items-center gap-2">
                       <CardTitle className="text-base">{game.eventTitle}</CardTitle>
                       <GameStatusBadge status={game.status} />
+                      <GameDurationBadge startedAt={game.startedAt} finishedAt={game.finishedAt} />
                       {game.source === "TEAM_ROTATION" ? <Badge tone="brand">Rotação</Badge> : null}
                     </div>
                     <p className="mt-0.5 text-[11px] uppercase tracking-wider text-muted">

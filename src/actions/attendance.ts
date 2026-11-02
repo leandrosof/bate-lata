@@ -13,8 +13,12 @@ import {
   type ActionState,
 } from "@/lib/action";
 import { recordAudit } from "@/lib/audit";
+import { attendanceConfirmedEmail, attendanceWaitlistEmail } from "@/lib/email";
+import { queueEmail } from "@/lib/notify";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
+import { formatDateLong, formatTime } from "@/lib/time";
+import { absoluteUrl } from "@/lib/utils";
 import {
   attendanceIdSchema,
   eventIdSchema,
@@ -23,6 +27,52 @@ import {
 } from "@/lib/validations";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type AttendanceEmailEvent = {
+  title: string;
+  startsAt: Date;
+  venueName: string;
+  publicToken: string | null;
+};
+
+async function queueAttendanceStatusEmail(input: {
+  kind: "confirmed" | "waitlist";
+  user: { name: string; email: string };
+  event: AttendanceEmailEvent;
+  position?: number;
+}) {
+  try {
+    const settings = await getSettings();
+    const startsAtLabel = `${formatDateLong(input.event.startsAt, settings.timezone)} às ${formatTime(
+      input.event.startsAt,
+      settings.timezone,
+    )}`;
+    const link = absoluteUrl(input.event.publicToken ? `/e/${input.event.publicToken}` : "/inicio");
+    const content =
+      input.kind === "confirmed"
+        ? attendanceConfirmedEmail({
+            name: input.user.name,
+            siteName: settings.siteName,
+            eventTitle: input.event.title,
+            startsAtLabel,
+            venueName: input.event.venueName,
+            link,
+          })
+        : attendanceWaitlistEmail({
+            name: input.user.name,
+            siteName: settings.siteName,
+            eventTitle: input.event.title,
+            startsAtLabel,
+            venueName: input.event.venueName,
+            position: input.position ?? 1,
+            link,
+          });
+
+    queueEmail({ to: input.user.email, ...content });
+  } catch (error) {
+    console.error("[email] falha ao preparar aviso de presença", error);
+  }
+}
 
 async function renumberWaitlist(tx: Tx, eventId: string) {
   const rows = await tx
@@ -42,9 +92,17 @@ async function renumberWaitlist(tx: Tx, eventId: string) {
   }
 }
 
-async function promoteNext(tx: Tx, eventId: string): Promise<string | null> {
+async function promoteNext(
+  tx: Tx,
+  eventId: string,
+): Promise<{ id: string; userId: string; name: string; email: string } | null> {
   const [next] = await tx
-    .select({ id: attendances.id, userId: attendances.userId, name: users.name })
+    .select({
+      id: attendances.id,
+      userId: attendances.userId,
+      name: users.name,
+      email: users.email,
+    })
     .from(attendances)
     .innerJoin(users, eq(users.id, attendances.userId))
     .where(and(eq(attendances.eventId, eventId), eq(attendances.status, "WAITLIST")))
@@ -58,7 +116,7 @@ async function promoteNext(tx: Tx, eventId: string): Promise<string | null> {
     .set({ status: "CONFIRMED", waitlistPosition: null, updatedAt: new Date() })
     .where(eq(attendances.id, next.id));
   await renumberWaitlist(tx, eventId);
-  return next.name;
+  return next;
 }
 
 export async function confirmAttendanceAction(
@@ -72,6 +130,7 @@ export async function confirmAttendanceAction(
   if (!user) return fail("Sua sessão expirou. Entre novamente.");
 
   try {
+    let eventForEmail: AttendanceEmailEvent | null = null;
     const result = await db.transaction(async (tx) => {
       const [event] = await tx
         .select()
@@ -82,6 +141,12 @@ export async function confirmAttendanceAction(
 
       if (!event) throw new AppError("Evento não encontrado.");
       if (event.status !== "SCHEDULED") throw new AppError("Este evento não está aberto para confirmações.");
+      eventForEmail = {
+        title: event.title,
+        startsAt: event.startsAt,
+        venueName: event.venueName,
+        publicToken: event.publicToken,
+      };
       if (event.startsAt.getTime() <= Date.now()) {
         throw new AppError("Este evento já começou. Fale com um administrador.");
       }
@@ -114,7 +179,10 @@ export async function confirmAttendanceAction(
             status: "CONFIRMED",
           });
         }
-        return "Presença confirmada. Bora jogar!";
+        return {
+          message: "Presença confirmada. Bora jogar!",
+          email: { kind: "confirmed" as const },
+        };
       }
 
       const settings = await getSettings();
@@ -143,11 +211,23 @@ export async function confirmAttendanceAction(
         });
       }
 
-      return `Vagas esgotadas. Você entrou na lista de espera na posição ${nextPosition}.`;
+      return {
+        message: `Vagas esgotadas. Você entrou na lista de espera na posição ${nextPosition}.`,
+        email: { kind: "waitlist" as const, position: nextPosition },
+      };
     });
 
+    if (result.email && eventForEmail) {
+      await queueAttendanceStatusEmail({
+        kind: result.email.kind,
+        user: { name: user.name, email: user.email },
+        event: eventForEmail,
+        position: "position" in result.email ? result.email.position : undefined,
+      });
+    }
+
     revalidatePath("/", "layout");
-    return success(result);
+    return success(result.message);
   } catch (error) {
     return actionFailure(error);
   }
@@ -164,6 +244,7 @@ export async function cancelAttendanceAction(
   if (!user) return fail("Sua sessão expirou. Entre novamente.");
 
   try {
+    let eventForEmail: AttendanceEmailEvent | null = null;
     const result = await db.transaction(async (tx) => {
       const [event] = await tx
         .select()
@@ -176,6 +257,12 @@ export async function cancelAttendanceAction(
       if (event.startsAt.getTime() <= Date.now()) {
         throw new AppError("Este evento já começou. Fale com um administrador.");
       }
+      eventForEmail = {
+        title: event.title,
+        startsAt: event.startsAt,
+        venueName: event.venueName,
+        publicToken: event.publicToken,
+      };
 
       const [existing] = await tx
         .select()
@@ -195,18 +282,29 @@ export async function cancelAttendanceAction(
       if (existing.status === "CONFIRMED") {
         const promoted = await promoteNext(tx, event.id);
         if (promoted) {
-          return `Presença cancelada. ${promoted} entrou no seu lugar.`;
+          return {
+            message: `Presença cancelada. ${promoted.name} entrou no seu lugar.`,
+            promoted,
+          };
         }
       } else {
         await renumberWaitlist(tx, event.id);
-        return "Você saiu da lista de espera.";
+        return { message: "Você saiu da lista de espera.", promoted: null };
       }
 
-      return "Presença cancelada.";
+      return { message: "Presença cancelada.", promoted: null };
     });
 
+    if (result.promoted && eventForEmail) {
+      await queueAttendanceStatusEmail({
+        kind: "confirmed",
+        user: { name: result.promoted.name, email: result.promoted.email },
+        event: eventForEmail,
+      });
+    }
+
     revalidatePath("/", "layout");
-    return success(result);
+    return success(result.message);
   } catch (error) {
     return actionFailure(error);
   }
@@ -223,7 +321,8 @@ export async function adminAddAttendanceAction(
   if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
 
   try {
-    const message = await db.transaction(async (tx) => {
+    let eventForEmail: AttendanceEmailEvent | null = null;
+    const result = await db.transaction(async (tx) => {
       const [event] = await tx
         .select()
         .from(events)
@@ -232,9 +331,15 @@ export async function adminAddAttendanceAction(
         .limit(1);
       if (!event) throw new AppError("Evento não encontrado.");
       if (event.status !== "SCHEDULED") throw new AppError("Este evento não está aberto.");
+      eventForEmail = {
+        title: event.title,
+        startsAt: event.startsAt,
+        venueName: event.venueName,
+        publicToken: event.publicToken,
+      };
 
       const [target] = await tx
-        .select({ id: users.id, name: users.name, active: users.active })
+        .select({ id: users.id, name: users.name, email: users.email, active: users.active })
         .from(users)
         .where(eq(users.id, parsed.data.userId))
         .limit(1);
@@ -267,7 +372,11 @@ export async function adminAddAttendanceAction(
             status: "CONFIRMED",
           });
         }
-        return `${target.name} confirmado no evento.`;
+        return {
+          message: `${target.name} confirmado no evento.`,
+          email: { kind: "confirmed" as const },
+          target,
+        };
       }
 
       const [maxRow] = await tx
@@ -289,11 +398,24 @@ export async function adminAddAttendanceAction(
           waitlistPosition: nextPosition,
         });
       }
-      return `Vagas esgotadas. ${target.name} entrou na fila de espera (${nextPosition}º).`;
+      return {
+        message: `Vagas esgotadas. ${target.name} entrou na fila de espera (${nextPosition}º).`,
+        email: { kind: "waitlist" as const, position: nextPosition },
+        target,
+      };
     });
 
+    if (result.email && eventForEmail) {
+      await queueAttendanceStatusEmail({
+        kind: result.email.kind,
+        user: { name: result.target.name, email: result.target.email },
+        event: eventForEmail,
+        position: "position" in result.email ? result.email.position : undefined,
+      });
+    }
+
     revalidatePath("/", "layout");
-    return success(message);
+    return success(result.message);
   } catch (error) {
     return actionFailure(error);
   }
@@ -310,7 +432,8 @@ export async function adminRemoveAttendanceAction(
   if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
 
   try {
-    const message = await db.transaction(async (tx) => {
+    let eventForEmail: AttendanceEmailEvent | null = null;
+    const result = await db.transaction(async (tx) => {
       const [row] = await tx
         .select({ attendance: attendances, name: users.name })
         .from(attendances)
@@ -319,12 +442,19 @@ export async function adminRemoveAttendanceAction(
         .limit(1);
 
       if (!row) throw new AppError("Presença não encontrada.");
-      await tx
+      const [event] = await tx
         .select()
         .from(events)
         .where(eq(events.id, row.attendance.eventId))
         .for("update")
         .limit(1);
+      if (!event) throw new AppError("Evento não encontrado.");
+      eventForEmail = {
+        title: event.title,
+        startsAt: event.startsAt,
+        venueName: event.venueName,
+        publicToken: event.publicToken,
+      };
 
       if (row.attendance.status === "CANCELLED") throw new AppError("Presença já cancelada.");
 
@@ -337,16 +467,27 @@ export async function adminRemoveAttendanceAction(
       if (wasConfirmed) {
         const promoted = await promoteNext(tx, row.attendance.eventId);
         return promoted
-          ? `Presença de ${row.name} removida. ${promoted} foi promovido da fila.`
-          : `Presença de ${row.name} removida.`;
+          ? {
+              message: `Presença de ${row.name} removida. ${promoted.name} foi promovido da fila.`,
+              promoted,
+            }
+          : { message: `Presença de ${row.name} removida.`, promoted: null };
       }
 
       await renumberWaitlist(tx, row.attendance.eventId);
-      return `${row.name} foi removido da fila de espera.`;
+      return { message: `${row.name} foi removido da fila de espera.`, promoted: null };
     });
 
+    if (result.promoted && eventForEmail) {
+      await queueAttendanceStatusEmail({
+        kind: "confirmed",
+        user: { name: result.promoted.name, email: result.promoted.email },
+        event: eventForEmail,
+      });
+    }
+
     revalidatePath("/", "layout");
-    return success(message);
+    return success(result.message);
   } catch (error) {
     return actionFailure(error);
   }
@@ -363,9 +504,10 @@ export async function adminPromoteAttendanceAction(
   if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
 
   try {
-    const message = await db.transaction(async (tx) => {
+    let eventForEmail: AttendanceEmailEvent | null = null;
+    const result = await db.transaction(async (tx) => {
       const [row] = await tx
-        .select({ attendance: attendances, name: users.name })
+        .select({ attendance: attendances, name: users.name, email: users.email })
         .from(attendances)
         .innerJoin(users, eq(users.id, attendances.userId))
         .where(eq(attendances.id, parsed.data.attendanceId))
@@ -382,6 +524,12 @@ export async function adminPromoteAttendanceAction(
         .for("update")
         .limit(1);
       if (!event) throw new AppError("Evento não encontrado.");
+      eventForEmail = {
+        title: event.title,
+        startsAt: event.startsAt,
+        venueName: event.venueName,
+        publicToken: event.publicToken,
+      };
 
       const [confirmedRow] = await tx
         .select({ total: count() })
@@ -397,11 +545,22 @@ export async function adminPromoteAttendanceAction(
         .set({ status: "CONFIRMED", waitlistPosition: null, updatedAt: new Date() })
         .where(eq(attendances.id, row.attendance.id));
       await renumberWaitlist(tx, event.id);
-      return `${row.name} agora está confirmado.`;
+      return {
+        message: `${row.name} agora está confirmado.`,
+        user: { name: row.name, email: row.email },
+      };
     });
 
+    if (eventForEmail) {
+      await queueAttendanceStatusEmail({
+        kind: "confirmed",
+        user: result.user,
+        event: eventForEmail,
+      });
+    }
+
     revalidatePath("/", "layout");
-    return success(message);
+    return success(result.message);
   } catch (error) {
     return actionFailure(error);
   }

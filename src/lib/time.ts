@@ -70,6 +70,31 @@ export function formatTime(date: Date, timeZone: string): string {
   return format(new TZDate(date, timeZone), "HH:mm");
 }
 
+export function formatDurationSeconds(seconds: number | null | undefined): string | null {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds) || seconds < 0) {
+    return null;
+  }
+
+  const totalMinutes = Math.floor(seconds / 60);
+  if (totalMinutes < 1) return "menos de 1 min";
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${String(minutes).padStart(2, "0")}min`;
+}
+
+export function formatGameDuration(
+  startedAt: Date | null | undefined,
+  finishedAt: Date | null | undefined,
+  now = new Date(),
+): string | null {
+  if (!startedAt) return null;
+  const end = finishedAt ?? now;
+  const seconds = (end.getTime() - startedAt.getTime()) / 1000;
+  return formatDurationSeconds(seconds);
+}
+
 export function formatWeekday(date: Date, timeZone: string): string {
   return format(new TZDate(date, timeZone), "EEEE", { locale: ptBR });
 }
