@@ -42,7 +42,7 @@ export function LoginForm({ next }: { next?: string }) {
           <Label htmlFor="password" required className="mb-0">
             Senha
           </Label>
-          <Link href="/recuperar-senha" className="text-xs font-medium text-[#7fa2ff] hover:text-white">
+          <Link href="/recuperar-senha" className="text-xs font-medium text-brand hover:text-ink">
             Esqueci a senha
           </Link>
         </div>

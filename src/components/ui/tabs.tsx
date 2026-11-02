@@ -23,8 +23,8 @@ export function LinkTabs({
           className={cn(
             "flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition",
             item.active
-              ? "bg-brand text-white shadow-[0_8px_20px_-12px_rgba(47,107,255,1)]"
-              : "text-muted hover:bg-white/5 hover:text-ink",
+              ? "bg-brand text-white shadow-[0_6px_16px_-12px_rgba(47,107,255,0.45)]"
+              : "text-muted hover:bg-ink/5 hover:text-ink",
           )}
         >
           {item.label}
@@ -32,7 +32,7 @@ export function LinkTabs({
             <span
               className={cn(
                 "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                item.active ? "bg-white/20 text-white" : "bg-white/8 text-muted",
+                item.active ? "bg-white/20 text-white" : "bg-ink/8 text-muted",
               )}
             >
               {item.count}

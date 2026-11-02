@@ -16,14 +16,10 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   let siteName = "Arena do Vôlei";
   let tagline = "Organize. Sorteie. Jogue.";
-  let logoUrl = "/icon-192.png";
   try {
     const settings = await getSettings();
     siteName = settings.siteName;
     tagline = settings.tagline;
-    logoUrl = settings.logoData
-      ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
-      : settings.logoUrl || logoUrl;
   } catch {
     // mantém os padrões quando o banco ainda não está configurado
   }
@@ -31,21 +27,15 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { default: `${siteName} · ${tagline}`, template: `%s · ${siteName}` },
     description:
-      "Organize partidas de vôlei do seu grupo: presenças, sorteio automático de times, placares, histórico e ranking.",
+      "Presença, times, placar e ranking do vôlei do grupo.",
     applicationName: siteName,
     manifest: "/manifest.webmanifest",
     icons: {
       icon: [
-        {
-          url: logoUrl,
-          type: logoUrl.endsWith(".svg")
-            ? "image/svg+xml"
-            : logoUrl.startsWith("/api/logo")
-              ? "image/webp"
-              : "image/png",
-        },
+        { url: "/api/icon/32", sizes: "32x32", type: "image/png" },
+        { url: "/api/icon/192", sizes: "192x192", type: "image/png" },
       ],
-      apple: [{ url: "/apple-icon.png", type: "image/png" }],
+      apple: [{ url: "/api/icon/180", sizes: "180x180", type: "image/png" }],
     },
     appleWebApp: { capable: true, title: siteName, statusBarStyle: "black-translucent" },
     openGraph: {
@@ -60,13 +50,23 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#070b14",
-  colorScheme: "dark",
+  themeColor: "#f3f6fb",
+  colorScheme: "light dark",
 };
+
+const themeScript = `(function(){try{var theme=localStorage.getItem("arena-theme");document.documentElement.dataset.theme=theme==="dark"?"dark":"light";}catch(e){document.documentElement.dataset.theme="light";}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${barlow.variable} antialiased`}>
+    <html
+      lang="pt-BR"
+      data-theme="light"
+      suppressHydrationWarning
+      className={`${inter.variable} ${barlow.variable} antialiased`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-dvh">{children}</body>
     </html>
   );

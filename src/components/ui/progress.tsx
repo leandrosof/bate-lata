@@ -21,7 +21,7 @@ export function Progress({
 
   return (
     <div
-      className={cn("h-2 w-full overflow-hidden rounded-full bg-white/8", className)}
+      className={cn("h-2 w-full overflow-hidden rounded-full bg-ink/8", className)}
       role="progressbar"
       aria-valuenow={percent}
       aria-valuemin={0}

@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import type { VariantProps } from "class-variance-authority";
 import type { ActionState } from "@/lib/action";
 import { cn } from "@/lib/utils";
+import { ActionFeedback } from "./action-feedback";
 import { Button, buttonVariants } from "./button";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -78,16 +79,7 @@ export function ActionButton({
           {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon}
           {pending ? (pendingLabel ?? "Aguarde...") : children}
         </Button>
-        {renderFeedback && state && !state.ok && state.message ? (
-          <p className={cn("feedback-auto-hide mt-1.5 text-xs font-medium text-[#ff9a9a]", feedbackClassName)} role="alert">
-            {state.message}
-          </p>
-        ) : null}
-        {renderFeedback && state?.ok && state.message ? (
-          <p className={cn("feedback-auto-hide mt-1.5 break-words text-xs font-medium text-[#86efac]", feedbackClassName)}>
-            {state.message}
-          </p>
-        ) : null}
+        {renderFeedback ? <ActionFeedback state={state} className={feedbackClassName} /> : null}
       </form>
 
       {confirmMessage ? (

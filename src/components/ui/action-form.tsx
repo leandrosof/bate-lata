@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
 import type { ActionState } from "@/lib/action";
 import { cn } from "@/lib/utils";
+import { ActionFeedback } from "./action-feedback";
 import { Alert } from "./alert";
 import { ConfirmDialog } from "./confirm-dialog";
 import { SubmitButton } from "./submit-button";
@@ -79,20 +80,17 @@ export function ActionForm({
 
         {children}
 
-        {state && !state.ok ? (
+        <ActionFeedback state={state} />
+
+        {state && !state.ok && fieldErrorMessages.length > 0 ? (
           <Alert tone="danger">
-            <p>{state.message ?? "Não foi possível salvar."}</p>
-            {fieldErrorMessages.length > 0 ? (
-              <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-xs opacity-90">
-                {fieldErrorMessages.map((message, index) => (
-                  <li key={`${message}-${index}`}>{message}</li>
-                ))}
-              </ul>
-            ) : null}
+            <ul className="list-inside list-disc space-y-0.5 text-xs opacity-90">
+              {fieldErrorMessages.map((message, index) => (
+                <li key={`${message}-${index}`}>{message}</li>
+              ))}
+            </ul>
           </Alert>
         ) : null}
-
-        {state?.ok && state.message ? <Alert tone="success">{state.message}</Alert> : null}
 
         <div className="flex flex-wrap items-center gap-2">
           {footerStart}

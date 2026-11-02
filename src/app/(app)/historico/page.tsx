@@ -92,7 +92,7 @@ export default async function HistoryPage({
                   </div>
                   <Link
                     href={`/partidas?jogo=${game.id}`}
-                    className="text-xs font-semibold text-[#7fa2ff] hover:text-white"
+                    className="text-xs font-semibold text-brand hover:text-ink"
                   >
                     Detalhes
                   </Link>
@@ -108,7 +108,7 @@ export default async function HistoryPage({
                         {game.source === "TEAM_ROTATION" ? "—" : game.scoreA}
                       </p>
                       {aWon ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#86efac]">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-success">
                           <Trophy className="h-3 w-3" aria-hidden /> vencedor
                         </span>
                       ) : null}
@@ -123,7 +123,7 @@ export default async function HistoryPage({
                         {game.source === "TEAM_ROTATION" ? "—" : game.scoreB}
                       </p>
                       {bWon ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#86efac]">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-success">
                           <Trophy className="h-3 w-3" aria-hidden /> vencedor
                         </span>
                       ) : null}

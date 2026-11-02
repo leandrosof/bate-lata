@@ -17,10 +17,11 @@ import {
 import { ptBR } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Plus, X } from "lucide-react";
 import { createEventAction } from "@/actions/admin";
+import { SurfaceBadge } from "@/components/features/surface-badge";
 import { ActionForm } from "@/components/ui/action-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Textarea } from "@/components/ui/input";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
 
 export type CalendarEvent = {
   id: string;
@@ -29,6 +30,7 @@ export type CalendarEvent = {
   endsAt: string | null;
   venueName: string;
   address: string | null;
+  surface: string | null;
   maxPlayers: number;
   confirmedCount: number;
   waitlistCount: number;
@@ -75,8 +77,8 @@ export function EventCalendar({
     <div className="card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-[#7fa2ff]" aria-hidden />
-          <p className="font-display text-lg font-semibold uppercase tracking-wide text-white">
+          <CalendarDays className="h-4 w-4 text-brand" aria-hidden />
+          <p className="font-display text-lg font-semibold uppercase tracking-wide text-ink">
             {format(month, "MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
@@ -112,7 +114,7 @@ export function EventCalendar({
               type="button"
               onClick={() => setSelected(day)}
               data-testid={`calendar-day-${dayKey(day)}`}
-              className={`min-h-[86px] border-b border-r border-line/50 p-1.5 text-left transition hover:bg-white/[0.04] ${
+              className={`min-h-[86px] border-b border-r border-line/50 p-1.5 text-left transition hover:bg-ink/[0.04] ${
                 inMonth ? "" : "opacity-40"
               }`}
             >
@@ -127,7 +129,7 @@ export function EventCalendar({
                 {dayEvents.slice(0, 2).map((event) => (
                   <span
                     key={event.id}
-                    className="block truncate rounded bg-brand-soft px-1 py-0.5 text-[9px] font-medium text-[#9db8ff]"
+                    className="block truncate rounded bg-brand-soft px-1 py-0.5 text-[9px] font-medium text-brand"
                   >
                     {event.title}
                   </span>
@@ -144,11 +146,11 @@ export function EventCalendar({
       {selected ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelected(null)} aria-hidden />
-          <div className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-line-strong bg-[#0b1220] p-4 shadow-2xl">
+          <div className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-line-strong bg-surface p-4 shadow-xl">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#7fa2ff]">Agenda</p>
-                <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-white">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-brand">Agenda</p>
+                <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-ink">
                   {format(selected, "EEEE, d 'de' MMMM", { locale: ptBR })}
                 </h2>
               </div>
@@ -168,6 +170,7 @@ export function EventCalendar({
                         {event.title}
                       </p>
                       <Badge tone="success">{Math.max(event.maxPlayers - event.confirmedCount, 0)} vagas</Badge>
+                      <SurfaceBadge surface={event.surface} />
                     </div>
                     <p className="mt-1 flex items-center gap-1 text-xs text-muted">
                       <Clock className="h-3 w-3" aria-hidden />
@@ -181,7 +184,7 @@ export function EventCalendar({
                     {event.publicToken ? (
                       <Link
                         href={`/e/${event.publicToken}`}
-                        className="mt-2 inline-block text-xs font-semibold text-[#7fa2ff] hover:text-white"
+                        className="mt-2 inline-block text-xs font-semibold text-brand hover:text-ink"
                       >
                         Ver evento
                       </Link>
@@ -246,6 +249,18 @@ export function EventCalendar({
                       </Label>
                       <Input id="cal-max" name="maxPlayers" type="number" min={2} max={200} defaultValue={12} required />
                     </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="cal-surface" required>
+                      Piso
+                    </Label>
+                    <Select id="cal-surface" name="surface" defaultValue="" required>
+                      <option value="" disabled>
+                        Selecione areia ou quadra
+                      </option>
+                      <option value="COURT">Quadra</option>
+                      <option value="SAND">Areia</option>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="cal-notes">Observações</Label>

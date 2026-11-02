@@ -7,16 +7,16 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-brand text-white shadow-[0_10px_30px_-14px_rgba(47,107,255,0.95)] hover:bg-brand-strong",
+          "bg-brand text-white shadow-[0_8px_20px_-14px_rgba(47,107,255,0.45)] hover:bg-brand-strong",
         secondary:
           "border border-line bg-surface-2 text-ink hover:border-line-strong hover:bg-surface-3",
         outline:
-          "border border-brand/45 bg-brand-soft/40 text-[#9db8ff] hover:bg-brand-soft hover:text-white",
-        ghost: "text-muted hover:bg-white/5 hover:text-ink",
+          "border border-brand/45 bg-brand-soft/40 text-brand hover:bg-brand-soft hover:text-ink",
+        ghost: "text-muted hover:bg-ink/5 hover:text-ink",
         danger:
-          "border border-[rgba(240,82,82,0.35)] bg-[rgba(240,82,82,0.14)] text-[#ff9a9a] hover:bg-[rgba(240,82,82,0.22)]",
+          "border border-[rgba(240,82,82,0.35)] bg-[rgba(240,82,82,0.14)] text-danger hover:bg-[rgba(240,82,82,0.22)]",
         success:
-          "border border-[rgba(34,197,94,0.35)] bg-[rgba(34,197,94,0.14)] text-[#86efac] hover:bg-[rgba(34,197,94,0.22)]",
+          "border border-[rgba(34,197,94,0.35)] bg-[rgba(34,197,94,0.14)] text-success hover:bg-[rgba(34,197,94,0.22)]",
         white: "bg-white text-[#0b1220] hover:bg-slate-100",
       },
       size: {

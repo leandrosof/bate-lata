@@ -44,6 +44,7 @@ describe("eventSchema", () => {
       title: "Vôlei de sábado",
       startsAt: "2026-11-07T19:00",
       venueName: "Arena",
+      surface: "COURT",
       maxPlayers: "12",
     });
     expect(result.success).toBe(true);
@@ -55,6 +56,7 @@ describe("eventSchema", () => {
       title: "Vôlei",
       startsAt: "2026-11-07T19:00",
       venueName: "Arena",
+      surface: "COURT",
       maxPlayers: "1",
     });
     expect(result.success).toBe(false);

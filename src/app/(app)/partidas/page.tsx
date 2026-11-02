@@ -136,7 +136,7 @@ export default async function MatchesPage({
                 <div className="flex flex-col items-center gap-1">
                   <span className="font-display text-sm uppercase tracking-widest text-muted">vs</span>
                   {isLive ? (
-                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#ffb4b4]">
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-danger">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#f05252]" />
                       ao vivo
                     </span>
@@ -370,7 +370,7 @@ export default async function MatchesPage({
                     <span className="text-muted">
                       {formatTime(entry.createdAt, settings.timezone)} ·{" "}
                       {entry.side === "A" ? game.teamAName : game.teamBName}{" "}
-                      <span className={entry.delta > 0 ? "text-[#86efac]" : "text-[#ff9a9a]"}>
+                      <span className={entry.delta > 0 ? "text-success" : "text-danger"}>
                         {entry.delta > 0 ? `+${entry.delta}` : entry.delta}
                       </span>
                     </span>
@@ -443,7 +443,7 @@ export default async function MatchesPage({
                       <div className="flex justify-end">
                         <TeamPill name={game.teamAName} color={game.teamAColor} />
                       </div>
-                      <p className="font-display text-3xl font-bold tabular-nums text-white">
+                      <p className="font-display text-3xl font-bold tabular-nums text-ink">
                         {game.scoreA}
                         <span className="mx-1.5 text-muted/50">:</span>
                         {game.scoreB}

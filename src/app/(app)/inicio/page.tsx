@@ -21,6 +21,7 @@ import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { ShareEventButton } from "@/components/features/share-event-button";
 import { AutoRefresh } from "@/components/features/auto-refresh";
 import { EventStatusBadge, GameStatusBadge } from "@/components/features/status-badge";
+import { SurfaceBadge } from "@/components/features/surface-badge";
 import { TeamPill } from "@/components/features/team-card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +96,7 @@ export default async function HomePage() {
             <AutoRefresh intervalMs={15000} />
             <Link
               href={`/racha?evento=${liveGame.eventId}`}
-              className="text-xs font-semibold text-[#7fa2ff] hover:text-white"
+              className="text-xs font-semibold text-brand hover:text-ink"
             >
               Abrir racha
             </Link>
@@ -105,7 +106,7 @@ export default async function HomePage() {
               <div className="min-w-0 flex-1 text-right">
                 <TeamPill name={liveGame.teamAName} color={liveGame.teamAColor} />
               </div>
-              <p className="font-display text-4xl font-bold tabular-nums text-white">
+              <p className="font-display text-4xl font-bold tabular-nums text-ink">
                 {liveGame.scoreA}
                 <span className="mx-2 text-muted/50">:</span>
                 {liveGame.scoreB}
@@ -115,7 +116,7 @@ export default async function HomePage() {
               </div>
             </div>
             {activeHours >= 6 ? (
-              <p className="text-center text-[11px] uppercase tracking-wider text-[#fbd38d]">
+              <p className="text-center text-[11px] uppercase tracking-wider text-warning">
                 Sessão aberta há {activeHours}h · finalize ou encerre no racha
               </p>
             ) : null}
@@ -125,15 +126,15 @@ export default async function HomePage() {
 
       {nextEvent && roster && parts ? (
         <Card>
-          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand/20 blur-3xl" />
+          <div className="home-glow pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand/20 blur-2xl" />
           <CardBody className="relative space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex min-w-[72px] flex-col items-center rounded-2xl border border-brand/25 bg-brand/10 px-3 py-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#9db8ff]">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-brand">
                     {parts.month}
                   </span>
-                  <span className="font-display text-3xl font-bold leading-none text-white">{parts.day}</span>
+                  <span className="font-display text-3xl font-bold leading-none text-ink">{parts.day}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                     {parts.weekday}
                   </span>
@@ -144,7 +145,7 @@ export default async function HomePage() {
                       ? "Racha em andamento"
                       : countdownLabel(nextEvent.startsAt, settings.timezone)}
                   </Badge>
-                  <h2 className="font-display text-2xl font-semibold uppercase leading-tight tracking-wide text-white">
+                  <h2 className="font-display text-2xl font-semibold uppercase leading-tight tracking-wide text-ink">
                     {nextEvent.title}
                   </h2>
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
@@ -153,12 +154,15 @@ export default async function HomePage() {
                   </p>
                 </div>
               </div>
-              <EventStatusBadge status={nextEvent.status} />
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <SurfaceBadge surface={nextEvent.surface} />
+                <EventStatusBadge status={nextEvent.status} />
+              </div>
             </div>
 
             <div className="grid gap-2 rounded-xl border border-line bg-surface-2/50 p-3">
               <p className="flex items-start gap-2 text-sm text-ink/90">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#7fa2ff]" aria-hidden />
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
                 <span>
                   <span className="font-medium">{nextEvent.venueName}</span>
                   {nextEvent.address ? (
@@ -172,7 +176,7 @@ export default async function HomePage() {
             <div className="space-y-1.5">
               <div className="flex items-end justify-between gap-2">
                 <p className="text-sm text-muted">
-                  <strong className="font-display text-2xl text-white">{confirmed.length}</strong>
+                  <strong className="font-display text-2xl text-ink">{confirmed.length}</strong>
                   <span className="text-muted">/{nextEvent.maxPlayers} confirmados</span>
                 </p>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted">
@@ -234,17 +238,17 @@ export default async function HomePage() {
                 />
               )}
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted">
-                <Link href={`/presencas?evento=${nextEvent.id}`} className="font-medium text-[#7fa2ff] hover:text-white">
+                <Link href={`/presencas?evento=${nextEvent.id}`} className="font-medium text-brand hover:text-ink">
                   Ver lista completa
                 </Link>
-                <Link href={`/racha?evento=${nextEvent.id}`} className="font-medium text-[#7fa2ff] hover:text-white">
+                <Link href={`/racha?evento=${nextEvent.id}`} className="font-medium text-brand hover:text-ink">
                   Ir para o racha
                 </Link>
                 {nextEvent.publicToken ? (
                   <ShareEventButton token={nextEvent.publicToken} title={nextEvent.title} />
                 ) : null}
                 {user.role === "ADMIN" ? (
-                  <Link href="/admin/eventos" className="inline-flex items-center gap-1 font-medium text-muted hover:text-white">
+                  <Link href={`/admin/eventos?edit=${nextEvent.id}#edit-${nextEvent.id}`} className="inline-flex items-center gap-1 font-medium text-muted hover:text-ink">
                     <PenLine className="h-3 w-3" aria-hidden />
                     Editar evento
                   </Link>
@@ -284,7 +288,7 @@ export default async function HomePage() {
                       {waitlist.map((player) => (
                         <li
                           key={player.userId}
-                          className="rounded-full border border-[rgba(245,185,66,0.3)] bg-[rgba(245,185,66,0.08)] px-2 py-0.5 text-[11px] text-[#fbd38d]"
+                          className="rounded-full border border-[rgba(245,185,66,0.3)] bg-[rgba(245,185,66,0.08)] px-2 py-0.5 text-[11px] text-warning"
                         >
                           {player.waitlistPosition}º {firstName(player.name)}
                         </li>
@@ -342,7 +346,7 @@ export default async function HomePage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Link href="/racha" className="card group flex items-center gap-3 p-4 transition hover:border-brand/40">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-soft text-[#9db8ff]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-soft text-brand">
             <Shuffle className="h-5 w-5" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">
@@ -354,7 +358,7 @@ export default async function HomePage() {
           <ArrowRight className="h-4 w-4 text-muted transition group-hover:text-ink" aria-hidden />
         </Link>
         <Link href="/partidas" className="card group flex items-center gap-3 p-4 transition hover:border-brand/40">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(34,197,94,0.12)] text-[#86efac]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(34,197,94,0.12)] text-success">
             <Trophy className="h-5 w-5" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">
@@ -367,7 +371,7 @@ export default async function HomePage() {
         </Link>
         {settings.rankingEnabled ? (
           <Link href="/ranking" className="card group flex items-center gap-3 p-4 transition hover:border-brand/40">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(245,185,66,0.12)] text-[#fbd38d]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(245,185,66,0.12)] text-warning">
               <BarChart3 className="h-5 w-5" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">

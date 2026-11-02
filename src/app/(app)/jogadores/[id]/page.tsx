@@ -78,7 +78,7 @@ export default async function PlayerDetailPage({
             <Avatar userId={player.id} name={player.name} version={player.avatarUpdatedAt} size="xl" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-white">
+                <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
                   {player.name}
                 </h2>
                 {player.role === "ADMIN" ? <Badge tone="brand">Admin</Badge> : null}
@@ -126,7 +126,7 @@ export default async function PlayerDetailPage({
               ].map((item) => (
                 <div key={item.label} className="rounded-xl border border-line bg-surface-2/40 p-3 text-center">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted">{item.label}</p>
-                  <p className="mt-1 font-display text-2xl font-semibold text-white">
+                  <p className="mt-1 font-display text-2xl font-semibold text-ink">
                     {item.entry ? `#${item.entry.position}` : "—"}
                   </p>
                   <p className="text-[10px] text-muted">
@@ -141,7 +141,7 @@ export default async function PlayerDetailPage({
         <Card>
           <CardHeader>
             <CardTitle>Últimos jogos</CardTitle>
-            <Link href="/historico" className="text-xs font-semibold text-[#7fa2ff] hover:text-white">
+            <Link href="/historico" className="text-xs font-semibold text-brand hover:text-ink">
               Histórico
             </Link>
           </CardHeader>
@@ -162,14 +162,14 @@ export default async function PlayerDetailPage({
                     <li key={game.id}>
                       <Link
                         href={`/partidas?jogo=${game.id}`}
-                        className="flex items-center gap-2 py-2.5 transition hover:bg-white/[0.02]"
+                        className="flex items-center gap-2 py-2.5 transition hover:bg-ink/[0.02]"
                       >
                         <span
                           className={cn(
                             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
                             won
-                              ? "bg-[rgba(34,197,94,0.14)] text-[#86efac]"
-                              : "bg-[rgba(240,82,82,0.12)] text-[#ff9a9a]",
+                              ? "bg-[rgba(34,197,94,0.14)] text-success"
+                              : "bg-[rgba(240,82,82,0.12)] text-danger",
                           )}
                         >
                           {won ? "V" : "D"}

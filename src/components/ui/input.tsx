@@ -39,7 +39,7 @@ export function Select({ className, children, ...props }: React.ComponentProps<"
 export function FieldError({ children }: { children?: React.ReactNode }) {
   if (!children) return null;
   return (
-    <p className="mt-1.5 text-xs font-medium text-[#ff9a9a]" role="alert">
+    <p className="mt-1.5 text-xs font-medium text-danger" role="alert">
       {children}
     </p>
   );
@@ -89,7 +89,7 @@ export function Switch({
       </span>
       <span className="relative inline-flex h-6 w-11 shrink-0 items-center">
         <input type="checkbox" className="peer h-6 w-11 cursor-pointer appearance-none rounded-full border border-line bg-surface-3 transition checked:border-brand checked:bg-brand" {...props} />
-        <span className="pointer-events-none absolute left-1 h-4 w-4 rounded-full bg-white/80 transition peer-checked:translate-x-5 peer-checked:bg-white" />
+        <span className="pointer-events-none absolute left-1 h-4 w-4 rounded-full bg-ink/80 transition peer-checked:translate-x-5 peer-checked:bg-white" />
       </span>
     </label>
   );

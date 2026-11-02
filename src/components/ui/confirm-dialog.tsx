@@ -14,19 +14,19 @@ const toneStyles: Record<
 > = {
   danger: {
     icon: ShieldAlert,
-    iconClass: "bg-[rgba(240,82,82,0.14)] text-[#ff9a9a]",
+    iconClass: "bg-[rgba(240,82,82,0.14)] text-danger",
     ringClass: "border-[rgba(240,82,82,0.25)]",
     button: "danger",
   },
   warning: {
     icon: AlertTriangle,
-    iconClass: "bg-[rgba(245,185,66,0.14)] text-[#fbd38d]",
+    iconClass: "bg-[rgba(245,185,66,0.14)] text-warning",
     ringClass: "border-[rgba(245,185,66,0.25)]",
     button: "secondary",
   },
   primary: {
     icon: Info,
-    iconClass: "bg-brand-soft text-[#9db8ff]",
+    iconClass: "bg-brand-soft text-brand",
     ringClass: "border-[rgba(47,107,255,0.28)]",
     button: "primary",
   },
@@ -102,7 +102,7 @@ export function ConfirmDialog({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         className={cn(
-          "relative w-full max-w-sm overflow-hidden rounded-2xl border bg-[#0b1220] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]",
+          "relative w-full max-w-sm overflow-hidden rounded-2xl border bg-surface shadow-[0_24px_60px_-24px_rgba(0,0,0,0.45)]",
           style.ringClass,
         )}
       >
@@ -111,7 +111,7 @@ export function ConfirmDialog({
             <Icon className="h-5 w-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1 pt-0.5">
-            <h2 id={titleId} className="font-display text-lg font-semibold uppercase tracking-wide text-white">
+            <h2 id={titleId} className="font-display text-lg font-semibold uppercase tracking-wide text-ink">
               {title}
             </h2>
             <p id={descriptionId} className="mt-1 text-sm leading-relaxed text-muted">
@@ -122,7 +122,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             aria-label="Fechar"
-            className="rounded-lg p-1 text-muted transition hover:bg-white/5 hover:text-ink"
+            className="rounded-lg p-1 text-muted transition hover:bg-ink/5 hover:text-ink"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>

@@ -65,7 +65,7 @@ export function OrganizerToggle({
         onChange={(event) => handleChange(event.target.checked)}
       />
       {error ? (
-        <p className="text-xs font-medium text-[#ff9a9a]" role="alert">
+        <p className="text-xs font-medium text-danger" role="alert">
           {error}
         </p>
       ) : null}

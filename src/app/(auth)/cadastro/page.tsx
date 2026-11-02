@@ -19,7 +19,7 @@ export default async function RegisterPage({
 
   return (
     <div className="card p-5 sm:p-7">
-      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7fa2ff]">Novo jogador</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">Novo jogador</p>
       <h1 className="mt-1 font-display text-3xl font-semibold uppercase tracking-wide text-ink">
         Criar minha conta
       </h1>
@@ -38,7 +38,7 @@ export default async function RegisterPage({
 
       <div className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
         Já tem conta?{" "}
-        <Link href={`/entrar${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-[#7fa2ff] hover:text-white">
+        <Link href={`/entrar${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-brand hover:text-ink">
           Entrar
         </Link>
       </div>

@@ -74,6 +74,7 @@ export const eventSchema = z.object({
   endsAt: localDateTime.optional(),
   venueName: z.string().trim().min(2, "Informe o local.").max(90, "Local muito longo."),
   address: z.string().trim().max(160, "Endereço muito longo.").optional(),
+  surface: z.enum(["SAND", "COURT"], { message: "Escolha areia ou quadra." }),
   maxPlayers: z.coerce
     .number({ message: "Informe o limite de jogadores." })
     .int("Use um número inteiro.")

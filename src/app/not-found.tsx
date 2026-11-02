@@ -9,11 +9,11 @@ export default function NotFound() {
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="card w-full max-w-md p-6 text-center sm:p-8">
-        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-[#9db8ff]">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
           <SearchX className="h-6 w-6" aria-hidden />
         </span>
-        <p className="mt-4 font-display text-5xl font-bold text-white/20">404</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-white">
+        <p className="mt-4 font-display text-5xl font-bold text-ink/20">404</p>
+        <h1 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-ink">
           Página não encontrada
         </h1>
         <p className="mt-2 text-sm text-muted">

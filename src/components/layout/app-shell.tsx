@@ -7,6 +7,7 @@ import { BottomNav } from "./bottom-nav";
 import { Brand } from "./brand";
 import { OfflineBanner } from "./offline-banner";
 import { SidebarLinks } from "./sidebar-links";
+import { ThemeToggle } from "./theme-toggle";
 
 export function AppShell({
   user,
@@ -24,15 +25,19 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface/90 backdrop-blur-2xl lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface/90 backdrop-blur-md lg:flex">
         <div className="px-5 py-6">
           <Brand siteName={settings.siteName} tagline={settings.tagline} logoUrl={logoUrl} />
         </div>
         <SidebarLinks isAdmin={isAdmin} rankingEnabled={settings.rankingEnabled} />
         <div className="border-t border-line/60 p-3">
+          <div className="mb-2 flex items-center justify-between rounded-xl border border-line/60 px-3 py-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Tema</span>
+            <ThemeToggle />
+          </div>
           <Link
             href="/perfil"
-            className="flex items-center gap-3 rounded-2xl p-2.5 transition hover:bg-white/[0.05]"
+            className="flex items-center gap-3 rounded-2xl p-2.5 transition hover:bg-ink/[0.05]"
           >
             <Avatar userId={user.id} name={user.name} version={user.avatarUpdatedAt} size="sm" />
             <span className="min-w-0 flex-1">
@@ -45,7 +50,7 @@ export function AppShell({
           <form action={logoutAction}>
             <button
               type="submit"
-              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted transition hover:bg-rose-500/10 hover:text-rose-400"
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted transition hover:bg-danger-soft hover:text-danger"
             >
               <LogOut className="h-4 w-4" aria-hidden />
               Sair
@@ -55,7 +60,7 @@ export function AppShell({
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur-xl lg:hidden">
+        <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur-md lg:hidden">
           <div className="flex h-16 items-center justify-between gap-3 px-4">
             <Brand
               compact
@@ -64,6 +69,7 @@ export function AppShell({
               logoUrl={logoUrl}
             />
             <div className="flex items-center gap-2.5">
+              <ThemeToggle />
               {isAdmin ? (
                 <Link
                   href="/admin"

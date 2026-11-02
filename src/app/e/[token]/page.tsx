@@ -2,9 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, MapPin, Trophy, Users } from "lucide-react";
 import { AttendanceControls } from "@/components/features/attendance-controls";
+import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
 import { ShareEventButton } from "@/components/features/share-event-button";
+import { SurfaceBadge } from "@/components/features/surface-badge";
 import { TeamPill } from "@/components/features/team-card";
 import { Brand } from "@/components/layout/brand";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -12,6 +15,7 @@ import { listEventGames, listRecentFinishedGames } from "@/db/queries/games";
 import { getEventByPublicToken, getEventRoster, listUpcomingEvents } from "@/db/queries/events";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
+import { surfaceCover, surfaceLabel } from "@/lib/surface";
 import { formatDateLong, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -49,13 +53,16 @@ export default async function PublicEventPage({
   const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
   const full = remaining === 0;
   const confirmedNames = [...roster.confirmed, ...roster.organizers].map((row) => row.name);
+  const confirmedOnlyNames = roster.confirmed.map((row) => row.name);
+  const organizerNames = roster.organizers.map((row) => row.name);
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-30 border-b border-line bg-[#070b14]/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-line bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-2 px-4">
           <Brand siteName={settings.siteName} tagline={settings.tagline} logoUrl={logoUrl} href="/" />
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             {user ? (
               <Link href="/inicio" className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
                 Meu painel
@@ -79,15 +86,17 @@ export default async function PublicEventPage({
 
       <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-5">
         <div className="relative overflow-hidden rounded-3xl border border-line">
-          {event.coverMime ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`/api/event-cover/${event.id}?v=${event.coverUpdatedAt?.getTime() ?? 0}`}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-40 blur-[1px]"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0b1220]/90 via-[#0b1220]/80 to-[#102a5c]/80" aria-hidden />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={
+              event.coverMime
+                ? `/api/event-cover/${event.id}?v=${event.coverUpdatedAt?.getTime() ?? 0}`
+                : surfaceCover(event.surface)
+            }
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-65 blur-[1px]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0b1220]/80 via-[#0b1220]/60 to-[#102a5c]/70" aria-hidden />
           <div className="relative px-5 py-8 text-center sm:px-10 sm:py-12">
             <Badge tone={isPast ? "neutral" : "success"}>
               {isPast ? "Evento encerrado" : "Inscrições abertas"}
@@ -95,16 +104,21 @@ export default async function PublicEventPage({
             <h1 className="mt-3 font-display text-4xl font-bold uppercase leading-none tracking-tight text-white sm:text-6xl">
               {event.title}
             </h1>
-            <p className="mt-3 text-sm text-muted">
+            <p className="mt-3 text-sm text-white/75">
               {formatDateLong(event.startsAt, settings.timezone)} ·{" "}
               {formatTime(event.startsAt, settings.timezone)}
               {event.endsAt ? ` às ${formatTime(event.endsAt, settings.timezone)}` : ""}
             </p>
-            <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted">
+            <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-white/75">
               <MapPin className="h-4 w-4" aria-hidden />
               {event.venueName}
               {event.address ? ` · ${event.address}` : ""}
             </p>
+            {event.surface ? (
+              <div className="mt-2 flex justify-center">
+                <SurfaceBadge surface={event.surface} />
+              </div>
+            ) : null}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               {!isPast ? (
                 user ? (
@@ -149,7 +163,7 @@ export default async function PublicEventPage({
         <div className="grid gap-3 sm:grid-cols-3">
           <Card>
             <CardBody className="text-center">
-              <p className="font-display text-3xl font-bold text-white">
+              <p className="font-display text-3xl font-bold text-ink">
                 {event.confirmedCount}/{event.maxPlayers}
               </p>
               <p className="text-[11px] uppercase tracking-wider text-muted">confirmados</p>
@@ -157,13 +171,13 @@ export default async function PublicEventPage({
           </Card>
           <Card>
             <CardBody className="text-center">
-              <p className="font-display text-3xl font-bold text-white">{full ? 0 : remaining}</p>
+              <p className="font-display text-3xl font-bold text-ink">{full ? 0 : remaining}</p>
               <p className="text-[11px] uppercase tracking-wider text-muted">vagas livres</p>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="text-center">
-              <p className="font-display text-3xl font-bold text-white">{roster.waitlist.length}</p>
+              <p className="font-display text-3xl font-bold text-ink">{roster.waitlist.length}</p>
               <p className="text-[11px] uppercase tracking-wider text-muted">na fila</p>
             </CardBody>
           </Card>
@@ -177,12 +191,23 @@ export default async function PublicEventPage({
 
         <Card>
           <CardBody className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-[#7fa2ff]" aria-hidden />
+            <div className="flex flex-wrap items-center gap-2">
+              <Users className="h-4 w-4 text-brand" aria-hidden />
               <h2 className="font-display text-lg font-semibold uppercase tracking-wide text-ink">
                 Quem vai
               </h2>
               <Badge>{confirmedNames.length}</Badge>
+              <div className="ml-auto">
+                <ShareAttendanceButton
+                  title={event.title}
+                  dateLabel={`${formatDateLong(event.startsAt, settings.timezone)} · ${formatTime(event.startsAt, settings.timezone)}`}
+                  venue={event.venueName}
+                  surface={surfaceLabel(event.surface)}
+                  token={event.publicToken}
+                  confirmed={confirmedOnlyNames}
+                  organizers={organizerNames}
+                />
+              </div>
             </div>
             {confirmedNames.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
@@ -203,7 +228,7 @@ export default async function PublicEventPage({
 
         <section className="space-y-2">
           <div className="flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-[#7bd88f]" aria-hidden />
+            <Trophy className="h-4 w-4 text-success" aria-hidden />
             <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-ink">
               Resultados deste evento
             </h2>
@@ -218,7 +243,7 @@ export default async function PublicEventPage({
                   className="flex flex-wrap items-center gap-2 rounded-xl border border-line/70 bg-surface-2/40 px-3 py-2 text-sm"
                 >
                   <TeamPill name={game.teamAName} color={game.teamAColor} />
-                  <span className="font-display text-lg tabular-nums text-white">
+                  <span className="font-display text-lg tabular-nums text-ink">
                     {game.scoreA} × {game.scoreB}
                   </span>
                   <TeamPill name={game.teamBName} color={game.teamBColor} />
@@ -246,14 +271,16 @@ export default async function PublicEventPage({
                   className="card overflow-hidden transition hover:border-brand/40"
                 >
                   <div className="relative h-24 bg-gradient-to-br from-brand/30 to-[#38bdf8]/10">
-                    {item.coverMime ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={`/api/event-cover/${item.id}?v=${item.coverUpdatedAt?.getTime() ?? 0}`}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : null}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={
+                        item.coverMime
+                          ? `/api/event-cover/${item.id}?v=${item.coverUpdatedAt?.getTime() ?? 0}`
+                          : surfaceCover(item.surface)
+                      }
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <div className="space-y-1 p-3">
                     <p className="font-display text-base font-semibold uppercase tracking-wide text-ink">
@@ -285,7 +312,7 @@ export default async function PublicEventPage({
                   className="flex flex-wrap items-center gap-2 rounded-xl border border-line/70 bg-surface-2/40 px-3 py-2 text-sm"
                 >
                   <TeamPill name={game.teamAName} color={game.teamAColor} />
-                  <span className="font-display text-lg tabular-nums text-white">
+                  <span className="font-display text-lg tabular-nums text-ink">
                     {game.scoreA} × {game.scoreB}
                   </span>
                   <TeamPill name={game.teamBName} color={game.teamBColor} />
@@ -300,7 +327,7 @@ export default async function PublicEventPage({
           <p>
             {settings.siteName} · {settings.tagline}
           </p>
-          <Link href="/" className="font-semibold text-[#7fa2ff] hover:text-white">
+          <Link href="/" className="font-semibold text-brand hover:text-ink">
             Ver todos os jogos
             <ArrowRight className="ml-1 inline h-3.5 w-3.5" aria-hidden />
           </Link>

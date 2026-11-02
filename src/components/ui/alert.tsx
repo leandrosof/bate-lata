@@ -3,19 +3,19 @@ import { cn } from "@/lib/utils";
 
 const tones = {
   info: {
-    wrap: "border-[rgba(47,107,255,0.32)] bg-[rgba(47,107,255,0.1)] text-[#b9ccff]",
+    wrap: "border-[rgba(47,107,255,0.32)] bg-[rgba(47,107,255,0.1)] text-brand-strong",
     icon: Info,
   },
   success: {
-    wrap: "border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.09)] text-[#a7f3c4]",
+    wrap: "border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.09)] text-success",
     icon: CircleCheck,
   },
   warning: {
-    wrap: "border-[rgba(245,185,66,0.32)] bg-[rgba(245,185,66,0.09)] text-[#fbd38d]",
+    wrap: "border-[rgba(245,185,66,0.32)] bg-[rgba(245,185,66,0.09)] text-warning",
     icon: CircleAlert,
   },
   danger: {
-    wrap: "border-[rgba(240,82,82,0.32)] bg-[rgba(240,82,82,0.09)] text-[#ffb4b4]",
+    wrap: "border-[rgba(240,82,82,0.32)] bg-[rgba(240,82,82,0.09)] text-danger",
     icon: CircleX,
   },
 } as const;

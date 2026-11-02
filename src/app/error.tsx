@@ -20,10 +20,10 @@ export default function ErrorPage({
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="card w-full max-w-md p-6 text-center sm:p-8">
-        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(240,82,82,0.12)] text-[#ff9a9a]">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(240,82,82,0.12)] text-danger">
           <TriangleAlert className="h-6 w-6" aria-hidden />
         </span>
-        <h1 className="mt-4 font-display text-2xl font-semibold uppercase tracking-wide text-white">
+        <h1 className="mt-4 font-display text-2xl font-semibold uppercase tracking-wide text-ink">
           Algo saiu do lugar
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">

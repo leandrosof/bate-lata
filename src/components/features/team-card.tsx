@@ -1,4 +1,4 @@
-import { teamVisualByColor } from "@/lib/teams";
+import { readableTextColor, teamVisualByColor } from "@/lib/teams";
 import { cn } from "@/lib/utils";
 
 export type TeamCardTeam = {
@@ -20,20 +20,21 @@ export function TeamCard({
   highlight?: boolean;
 }) {
   const visual = teamVisualByColor(team.color);
+  const foreground = readableTextColor(visual.hex);
 
   return (
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl border transition-all duration-300",
         highlight
-          ? "border-white/20 bg-surface-2/90 shadow-[0_12px_28px_-8px_rgba(0,0,0,0.6)]"
+          ? "border-line-strong bg-surface-2/90 shadow-[0_10px_24px_-16px_rgba(0,0,0,0.35)]"
           : "border-line bg-surface/60",
         className,
       )}
     >
       {/* Top subtle glow bar */}
       <div
-        className="h-1.5 w-full shadow-[0_2px_10px]"
+        className="h-1.5 w-full shadow-[0_1px_6px]"
         style={{
           backgroundColor: visual.hex,
           color: visual.hex,
@@ -42,16 +43,19 @@ export function TeamCard({
       <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
         <div className="flex min-w-0 items-center gap-2">
           <span
-            className="h-3 w-3 shrink-0 rounded-full shadow-[0_0_8px]"
-            style={{ backgroundColor: visual.hex, color: visual.hex }}
+            className="h-3 w-3 shrink-0 rounded-full"
+            style={{
+              backgroundColor: visual.hex,
+              boxShadow: `0 0 0 1px ${foreground}55, 0 0 8px ${visual.hex}`,
+            }}
           />
           <p className="truncate font-display text-base font-bold uppercase tracking-wider text-ink">
             {team.name}
           </p>
         </div>
         <span
-          className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
-          style={{ backgroundColor: visual.soft, color: visual.hex }}
+          className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-ink"
+          style={{ backgroundColor: visual.soft }}
         >
           {team.players.length}
           {teamSize ? `/${teamSize}` : ""}
@@ -61,9 +65,9 @@ export function TeamCard({
         {team.players.map((player, index) => (
           <li
             key={player.userId}
-            className="flex items-center gap-2.5 rounded-xl bg-white/[0.02] px-2.5 py-1.5 text-sm font-medium text-ink transition hover:bg-white/[0.06]"
+            className="flex items-center gap-2.5 rounded-xl bg-ink/[0.02] px-2.5 py-1.5 text-sm font-medium text-ink transition hover:bg-ink/[0.06]"
           >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/5 text-[11px] font-bold text-muted">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-ink/5 text-[11px] font-bold text-muted">
               {index + 1}
             </span>
             <span className="truncate">{player.name}</span>
@@ -79,12 +83,19 @@ export function TeamCard({
 
 export function TeamPill({ name, color }: { name: string; color: string }) {
   const visual = teamVisualByColor(color);
+  const ring = readableTextColor(visual.hex);
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold"
-      style={{ borderColor: `${visual.hex}55`, backgroundColor: visual.soft, color: visual.hex }}
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold text-ink"
+      style={{ borderColor: `${visual.hex}66`, backgroundColor: visual.soft }}
     >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: visual.hex }} />
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{
+          backgroundColor: visual.hex,
+          boxShadow: `0 0 0 1px ${ring}66`,
+        }}
+      />
       {name}
     </span>
   );

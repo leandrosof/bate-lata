@@ -21,7 +21,7 @@ export function Brand({
     <Link href={href} className={cn("group flex min-w-0 items-center gap-3", className)}>
       <span
         className={cn(
-          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-white/[0.08] to-transparent p-1 ring-1 ring-white/15 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.5)] transition duration-300 group-hover:scale-105 group-hover:ring-brand/40",
+          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-ink/[0.08] to-transparent p-1 ring-1 ring-line-strong shadow-[0_6px_16px_-10px_rgba(0,0,0,0.2)] transition duration-300 group-hover:scale-105 group-hover:ring-brand/40",
           compact ? "h-11 w-11" : "h-12 w-12",
         )}
       >
@@ -35,14 +35,14 @@ export function Brand({
       <span className="min-w-0">
         <span
           className={cn(
-            "block truncate font-display font-black tracking-wider text-ink transition-colors group-hover:text-white",
+            "block truncate font-display font-black tracking-wider text-ink transition-colors group-hover:text-ink",
             compact ? "text-base tracking-wide" : "text-lg",
           )}
         >
           {siteName}
         </span>
         {tagline ? (
-          <span className="mt-0.5 block truncate text-[10px] font-bold uppercase tracking-[0.22em] text-[#7fa2ff]">
+          <span className="mt-0.5 block truncate text-[10px] font-bold uppercase tracking-[0.22em] text-brand">
             {tagline}
           </span>
         ) : null}

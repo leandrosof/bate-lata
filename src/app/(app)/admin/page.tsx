@@ -104,7 +104,7 @@ export default async function AdminHomePage() {
                 href={link.href}
                 className="card group flex items-center gap-3 p-3.5 transition hover:border-brand/40"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-[#9db8ff]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-brand">
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ export default async function AdminHomePage() {
         <Card>
           <CardHeader>
             <CardTitle>Próximo evento</CardTitle>
-            <Link href="/admin/eventos" className="text-xs font-semibold text-[#7fa2ff] hover:text-white">
+            <Link href="/admin/eventos" className="text-xs font-semibold text-brand hover:text-ink">
               Gerenciar
             </Link>
           </CardHeader>
@@ -140,7 +140,7 @@ export default async function AdminHomePage() {
             ) : (
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-display text-xl font-semibold uppercase tracking-wide text-white">
+                  <p className="font-display text-xl font-semibold uppercase tracking-wide text-ink">
                     {nextEvent.title}
                   </p>
                   <Badge tone="brand">{formatDateShort(nextEvent.startsAt, settings.timezone)}</Badge>
@@ -204,7 +204,7 @@ export default async function AdminHomePage() {
           <div className="space-y-2">
             {announcements.map((announcement) => (
               <div key={announcement.id} className="card flex items-center gap-3 p-3">
-                <Megaphone className="h-4 w-4 shrink-0 text-[#9db8ff]" aria-hidden />
+                <Megaphone className="h-4 w-4 shrink-0 text-brand" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink">{announcement.title}</p>
                   <p className="truncate text-[11px] text-muted">{announcement.body}</p>

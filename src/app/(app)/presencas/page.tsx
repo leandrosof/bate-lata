@@ -20,8 +20,10 @@ import {
 } from "@/actions/attendance";
 import { AttendanceControls } from "@/components/features/attendance-controls";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
+import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
 import { EventPicker } from "@/components/features/event-picker";
 import { EventStatusBadge } from "@/components/features/status-badge";
+import { SurfaceBadge } from "@/components/features/surface-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ActionButton } from "@/components/ui/action-button";
@@ -33,6 +35,7 @@ import { Progress } from "@/components/ui/progress";
 import { getEventById, getEventRoster, listOperationalEvents } from "@/db/queries/events";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
+import { surfaceLabel } from "@/lib/surface";
 import { formatDateTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -102,9 +105,10 @@ export default async function AttendancePage({
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-white">
+                    <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
                       {selected.title}
                     </h2>
+                    <SurfaceBadge surface={selected.surface} />
                     <EventStatusBadge status={selected.status} />
                   </div>
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
@@ -120,7 +124,7 @@ export default async function AttendancePage({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-display text-3xl font-bold leading-none text-white">
+                  <p className="font-display text-3xl font-bold leading-none text-ink">
                     {roster.confirmed.length}
                     <span className="text-lg text-muted">/{selected.maxPlayers}</span>
                   </p>
@@ -136,10 +140,21 @@ export default async function AttendancePage({
                 tone={isFull ? "success" : remaining <= 3 ? "warning" : "brand"}
               />
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="success">{roster.confirmed.length} confirmados</Badge>
                 <Badge tone="warning">{roster.waitlist.length} na espera</Badge>
                 <Badge tone="neutral">{roster.pending.length} sem resposta</Badge>
+                <div className="ml-auto">
+                  <ShareAttendanceButton
+                    title={selected.title}
+                    dateLabel={formatDateTime(selected.startsAt, settings.timezone)}
+                    venue={selected.venueName}
+                    surface={surfaceLabel(selected.surface)}
+                    token={selected.publicToken}
+                    confirmed={roster.confirmed.map((row) => row.name)}
+                    organizers={roster.organizers.map((row) => row.name)}
+                  />
+                </div>
               </div>
 
               {isAdmin ? (
@@ -166,7 +181,7 @@ export default async function AttendancePage({
             <Card data-testid="confirmed-card">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(34,197,94,0.12)] text-[#86efac]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(34,197,94,0.12)] text-success">
                     <Check className="h-4 w-4" aria-hidden />
                   </span>
                   <CardTitle>Confirmados</CardTitle>
@@ -186,7 +201,7 @@ export default async function AttendancePage({
                           <p className="truncate text-sm font-medium text-ink">
                             {player.name}
                             {player.userId === user.id ? (
-                              <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-[#7fa2ff]">
+                              <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-brand">
                                 você
                               </span>
                             ) : null}
@@ -229,7 +244,7 @@ export default async function AttendancePage({
             <Card data-testid="waitlist-card">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(245,185,66,0.12)] text-[#fbd38d]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(245,185,66,0.12)] text-warning">
                     <ListOrdered className="h-4 w-4" aria-hidden />
                   </span>
                   <CardTitle>Lista de espera</CardTitle>
@@ -245,14 +260,14 @@ export default async function AttendancePage({
                   <ul className="divide-y divide-line/60">
                     {roster.waitlist.map((player, index) => (
                       <li key={player.attendanceId} className="flex items-center gap-2 py-2">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(245,185,66,0.14)] text-[10px] font-bold text-[#fbd38d]">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(245,185,66,0.14)] text-[10px] font-bold text-warning">
                           {player.waitlistPosition ?? index + 1}
                         </span>
                         <Avatar userId={player.userId} name={player.name} version={player.avatarUpdatedAt} size="sm" />
                         <p className="min-w-0 flex-1 truncate text-sm text-ink">
                           {player.name}
                           {player.userId === user.id ? (
-                            <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-[#fbd38d]">
+                            <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-warning">
                               você
                             </span>
                           ) : null}
@@ -316,7 +331,7 @@ export default async function AttendancePage({
             <Card data-testid="organizers-card">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-[#9db8ff]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand">
                     <UserCog className="h-4 w-4" aria-hidden />
                   </span>
                   <CardTitle>Organizadores</CardTitle>
@@ -372,7 +387,7 @@ export default async function AttendancePage({
                   {roster.pending.map((player) => (
                     <li
                       key={player.userId}
-                      className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 transition hover:bg-white/[0.03]"
+                      className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 transition hover:bg-ink/[0.03]"
                     >
                       <Avatar userId={player.userId} name={player.name} version={player.avatarUpdatedAt} size="sm" />
                       <span className="min-w-0 flex-1 truncate text-sm text-muted">{player.name}</span>

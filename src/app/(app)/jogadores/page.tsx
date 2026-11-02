@@ -82,7 +82,7 @@ export default async function PlayersPage({
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   {player.position ? <Badge tone="brand">#{player.position}</Badge> : null}
-                  <span className="font-display text-lg font-semibold tabular-nums text-white">{player.points}</span>
+                  <span className="font-display text-lg font-semibold tabular-nums text-ink">{player.points}</span>
                   <span className="text-[9px] uppercase tracking-wider text-muted">pts</span>
                 </div>
               </CardBody>

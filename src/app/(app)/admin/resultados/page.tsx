@@ -66,12 +66,12 @@ export default async function AdminResultsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <p className="font-display text-xl font-semibold tabular-nums text-white">
+                    <p className="font-display text-xl font-semibold tabular-nums text-ink">
                       {game.scoreA} <span className="text-muted/50">:</span> {game.scoreB}
                     </p>
                     <Link
                       href={`/partidas?jogo=${game.id}`}
-                      className="text-[#7fa2ff] transition hover:text-white"
+                      className="text-brand transition hover:text-ink"
                       aria-label="Abrir partida"
                     >
                       <ArrowRight className="h-4 w-4" aria-hidden />

@@ -52,7 +52,7 @@ import { getRachaView } from "@/db/queries/racha";
 import { requireUser } from "@/lib/auth";
 import { chunkQueue } from "@/lib/racha";
 import { getSettings } from "@/lib/settings";
-import { TEAM_SIZE_OPTIONS } from "@/lib/teams";
+import { TEAM_SIZE_OPTIONS, teamVisualForIndex } from "@/lib/teams";
 import { formatDateTime, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -100,6 +100,7 @@ export default async function RachaPage({
   );
   const sessionHours = view?.sessionAgeHours ?? 0;
   const teamById = new Map((view?.teams ?? []).map((team) => [team.id, team]));
+  let nextTeamIndex = view?.teams.length ?? 0;
   const queueGroups = chunkQueue(view?.queue ?? [], teamSize).map((players, index) => {
     const blockIds = new Set(
       players
@@ -110,7 +111,15 @@ export default async function RachaPage({
       blockIds.size === 1 && players.every((player) => player.queueTeamId === [...blockIds][0])
         ? [...blockIds][0]
         : null;
-    return { key: `group-${index}`, teamId, players };
+    const team = teamId ? teamById.get(teamId) : null;
+    const visual = team
+      ? { name: team.name, color: team.color }
+      : (() => {
+          const next = teamVisualForIndex(nextTeamIndex);
+          nextTeamIndex += 1;
+          return { name: next.name, color: next.color };
+        })();
+    return { key: `group-${index}`, players, visual };
   });
   const onCourtIds = new Set(
     game ? [...game.teamAPlayers, ...game.teamBPlayers].map((player) => player.userId) : [],
@@ -150,7 +159,7 @@ export default async function RachaPage({
               <CardBody className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-white">
+                    <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
                       {selected.title}
                     </h2>
                     <p className="text-xs text-muted">
@@ -324,7 +333,7 @@ export default async function RachaPage({
                 <Card data-testid="racha-current-game">
                   <CardHeader>
                     <div className="flex items-center gap-2">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-[#9db8ff]">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand">
                         <Trophy className="h-4 w-4" aria-hidden />
                       </span>
                       <CardTitle>
@@ -348,13 +357,13 @@ export default async function RachaPage({
                           teamSize={teamSize}
                           highlight
                         />
-                        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-surface-2/60 px-4 py-2.5 backdrop-blur-sm sm:justify-center sm:gap-4">
+                        <div className="flex items-center justify-between rounded-2xl border border-line bg-surface-2/60 px-4 py-2.5 backdrop-blur-sm sm:justify-center sm:gap-4">
                           <span className="text-xs font-bold uppercase tracking-wider text-muted sm:hidden">
                             Placar
                           </span>
                           <div className="flex items-center gap-3">
                             <p
-                              className="font-display text-4xl font-extrabold tabular-nums tracking-tight text-white sm:text-5xl"
+                              className="font-display text-4xl font-extrabold tabular-nums tracking-tight text-ink sm:text-5xl"
                               data-testid="racha-score-a"
                             >
                               {game.scoreA}
@@ -376,7 +385,7 @@ export default async function RachaPage({
                                   fields={{ gameId: game.id, side: "A", delta: -1 }}
                                   variant="ghost"
                                   size="icon"
-                                  className="h-9 w-9 rounded-xl text-muted hover:bg-white/10 hover:text-white"
+                                  className="h-9 w-9 rounded-xl text-muted hover:bg-ink/10 hover:text-ink"
                                   title={`-1 ${game.teamAName}`}
                                 >
                                   <Minus className="h-4 w-4" aria-hidden />
@@ -389,7 +398,7 @@ export default async function RachaPage({
 
                       {/* VS Divider */}
                       <div className="flex items-center justify-center py-1 md:flex-col md:py-0">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 font-display text-xs font-bold uppercase tracking-widest text-muted/80 backdrop-blur-sm">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-ink/5 font-display text-xs font-bold uppercase tracking-widest text-muted/80 backdrop-blur-sm">
                           VS
                         </span>
                       </div>
@@ -405,13 +414,13 @@ export default async function RachaPage({
                           teamSize={teamSize}
                           highlight
                         />
-                        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-surface-2/60 px-4 py-2.5 backdrop-blur-sm sm:justify-center sm:gap-4">
+                        <div className="flex items-center justify-between rounded-2xl border border-line bg-surface-2/60 px-4 py-2.5 backdrop-blur-sm sm:justify-center sm:gap-4">
                           <span className="text-xs font-bold uppercase tracking-wider text-muted sm:hidden">
                             Placar
                           </span>
                           <div className="flex items-center gap-3">
                             <p
-                              className="font-display text-4xl font-extrabold tabular-nums tracking-tight text-white sm:text-5xl"
+                              className="font-display text-4xl font-extrabold tabular-nums tracking-tight text-ink sm:text-5xl"
                               data-testid="racha-score-b"
                             >
                               {game.scoreB}
@@ -433,7 +442,7 @@ export default async function RachaPage({
                                   fields={{ gameId: game.id, side: "B", delta: -1 }}
                                   variant="ghost"
                                   size="icon"
-                                  className="h-9 w-9 rounded-xl text-muted hover:bg-white/10 hover:text-white"
+                                  className="h-9 w-9 rounded-xl text-muted hover:bg-ink/10 hover:text-ink"
                                   title={`-1 ${game.teamBName}`}
                                 >
                                   <Minus className="h-4 w-4" aria-hidden />
@@ -476,7 +485,7 @@ export default async function RachaPage({
                           fields={{ gameId: game.id }}
                           variant="success"
                           size="lg"
-                          className="flex-1 justify-center rounded-xl py-3 shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5)] transition active:scale-[0.99]"
+                          className="flex-1 justify-center rounded-xl py-3 shadow-[0_6px_16px_-10px_rgba(16,185,129,0.3)] transition active:scale-[0.99]"
                           confirmMessage="Finalizar a partida e rodar a fila automaticamente?"
                           icon={<Flag className="h-4 w-4" aria-hidden />}
                         >
@@ -576,7 +585,7 @@ export default async function RachaPage({
               <Card data-testid="racha-queue">
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(245,185,66,0.12)] text-[#fbd38d]">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(245,185,66,0.12)] text-warning">
                       <ListOrdered className="h-4 w-4" aria-hidden />
                     </span>
                     <CardTitle>Fila de espera</CardTitle>
@@ -585,25 +594,20 @@ export default async function RachaPage({
                 </CardHeader>
                 <CardBody className="space-y-1.5 pt-2">
                   {view.queue.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-muted">
+                    <div className="rounded-xl border border-dashed border-line p-6 text-center text-xs text-muted">
                       Ninguém na fila de espera no momento.
                     </div>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {queueGroups.map((group, groupIndex) => {
-                        const team = group.teamId ? teamById.get(group.teamId) : null;
                         const complete = group.players.length >= teamSize;
                         return (
-                          <div key={group.key} className="rounded-xl border border-white/5 bg-surface-2/30 p-2">
+                          <div key={group.key} className="rounded-xl border border-line bg-surface-2/30 p-2">
                             <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
                                 {groupIndex + 1}º time reserva
                               </span>
-                              {team ? (
-                                <TeamPill name={team.name} color={team.color} />
-                              ) : (
-                                <Badge tone="neutral">Avulsos</Badge>
-                              )}
+                              <TeamPill name={group.visual.name} color={group.visual.color} />
                               {!complete ? <Badge tone="warning">Incompleto</Badge> : null}
                             </div>
                             <ul className="space-y-1">
@@ -611,13 +615,13 @@ export default async function RachaPage({
                                 const index = view.queue.findIndex((item) => item.userId === player.userId);
                                 return (
                                   <li key={player.userId} className="flex items-center gap-2 rounded-lg px-1.5 py-1">
-                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-[10px] font-bold text-amber-400">
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-warning-soft text-[10px] font-bold text-warning">
                                       #{index + 1}
                                     </span>
                                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
                                       {player.name}
                                     </span>
-                                    <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted">
+                                    <span className="shrink-0 rounded-md bg-ink/5 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted">
                                       {player.gamesPlayed}j
                                     </span>
                                     {isAdmin ? (
@@ -636,7 +640,7 @@ export default async function RachaPage({
                                           fields={{ attendanceId: player.attendanceId }}
                                           variant="ghost"
                                           size="icon-sm"
-                                          className="text-muted hover:bg-rose-500/10 hover:text-rose-400"
+                                          className="text-muted hover:bg-danger-soft hover:text-danger"
                                           confirmMessage={`Remover ${player.name} da fila?`}
                                           title="Remover da fila"
                                         >

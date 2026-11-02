@@ -83,14 +83,14 @@ export function QueueSwapDialog({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
-                className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line-strong bg-[#0b1220] p-4 shadow-2xl"
+                className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line-strong bg-surface p-4 shadow-xl"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#7fa2ff]">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-brand">
                       Fila de espera
                     </p>
-                    <h2 id={titleId} className="font-display text-xl font-semibold uppercase tracking-wide text-white">
+                    <h2 id={titleId} className="font-display text-xl font-semibold uppercase tracking-wide text-ink">
                       Trocar {playerName}
                     </h2>
                   </div>
@@ -131,7 +131,7 @@ export function QueueSwapDialog({
                           className="h-4 w-4 shrink-0 accent-[#2f6bff]"
                           required
                         />
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/5 text-[10px] font-bold text-muted">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ink/5 text-[10px] font-bold text-muted">
                           #{player.position}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
@@ -142,7 +142,7 @@ export function QueueSwapDialog({
                   </div>
 
                   {state && !state.ok && state.message ? (
-                    <p className="text-xs font-medium text-[#ff9a9a]" role="alert">
+                    <p className="text-xs font-medium text-danger" role="alert">
                       {state.message}
                     </p>
                   ) : null}

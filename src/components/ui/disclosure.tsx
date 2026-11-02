@@ -9,6 +9,7 @@ export function Disclosure({
   className,
   action,
   tone = "default",
+  id,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -17,9 +18,11 @@ export function Disclosure({
   className?: string;
   action?: React.ReactNode;
   tone?: "default" | "danger";
+  id?: string;
 }) {
   return (
     <details
+      id={id}
       className={cn(
         "group rounded-xl border bg-surface-2/40 transition open:bg-surface-2/70",
         tone === "danger" ? "border-[rgba(240,82,82,0.25)]" : "border-line",

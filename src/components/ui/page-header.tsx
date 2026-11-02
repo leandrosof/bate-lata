@@ -35,13 +35,13 @@ export function PageHeader({
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           {icon ? (
-            <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/25 bg-brand-soft text-[#9db8ff]">
+            <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/25 bg-brand-soft text-brand">
               {icon}
             </span>
           ) : null}
           <div className="min-w-0">
             {eyebrow ? (
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7fa2ff]">{eyebrow}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
             ) : null}
             <h1 className="font-display text-3xl font-semibold uppercase leading-none tracking-wide text-ink sm:text-4xl">
               {title}

@@ -54,7 +54,7 @@ export default async function ProfilePage() {
           <CardBody className="space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-white">
+                <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
                   {user.name}
                 </h2>
                 <p className="text-sm text-muted">{user.email}</p>
@@ -183,7 +183,7 @@ export default async function ProfilePage() {
         <Card>
           <CardHeader>
             <CardTitle>Seus últimos jogos</CardTitle>
-            <Link href="/historico" className="text-xs font-semibold text-[#7fa2ff] hover:text-white">
+            <Link href="/historico" className="text-xs font-semibold text-brand hover:text-ink">
               Histórico
             </Link>
           </CardHeader>
@@ -204,14 +204,14 @@ export default async function ProfilePage() {
                     <li key={game.id}>
                       <Link
                         href={`/partidas?jogo=${game.id}`}
-                        className="flex items-center gap-2 py-2.5 transition hover:bg-white/[0.02]"
+                        className="flex items-center gap-2 py-2.5 transition hover:bg-ink/[0.02]"
                       >
                         <span
                           className={cn(
                             "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold",
                             won
-                              ? "bg-[rgba(34,197,94,0.14)] text-[#86efac]"
-                              : "bg-[rgba(240,82,82,0.12)] text-[#ff9a9a]",
+                              ? "bg-[rgba(34,197,94,0.14)] text-success"
+                              : "bg-[rgba(240,82,82,0.12)] text-danger",
                           )}
                         >
                           {won ? "V" : "D"}

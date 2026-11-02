@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Clock, MapPin, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock, MapPin, Pencil, Users } from "lucide-react";
 import { AttendanceControls } from "@/components/features/attendance-controls";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { EventCalendar } from "@/components/features/event-calendar";
 import { ShareEventButton } from "@/components/features/share-event-button";
 import { EventStatusBadge } from "@/components/features/status-badge";
+import { SurfaceBadge } from "@/components/features/surface-badge";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -31,6 +32,7 @@ export default async function UpcomingPage() {
     endsAt: event.endsAt?.toISOString() ?? null,
     venueName: event.venueName,
     address: event.address,
+    surface: event.surface,
     maxPlayers: event.maxPlayers,
     confirmedCount: event.confirmedCount,
     waitlistCount: event.waitlistCount,
@@ -77,6 +79,7 @@ export default async function UpcomingPage() {
           {events.map((event) => {
             const parts = dayParts(event.startsAt, settings.timezone);
             const mine = attendanceMap.get(event.id);
+            const organizing = Boolean(mine?.isOrganizer) || (user.role === "ADMIN" && !mine);
             const remaining = Math.max(event.maxPlayers - event.confirmedCount, 0);
             const isFull = remaining === 0;
 
@@ -86,19 +89,20 @@ export default async function UpcomingPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
                       <div className="flex min-w-[62px] flex-col items-center rounded-xl border border-brand/25 bg-brand/10 px-2 py-2">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-[#9db8ff]">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-brand">
                           {parts.month}
                         </span>
-                        <span className="font-display text-2xl font-bold leading-none text-white">{parts.day}</span>
+                        <span className="font-display text-2xl font-bold leading-none text-ink">{parts.day}</span>
                         <span className="text-[9px] font-semibold uppercase tracking-wider text-muted">
                           {parts.weekday}
                         </span>
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <h2 className="font-display text-xl font-semibold uppercase leading-tight tracking-wide text-white">
+                          <h2 className="font-display text-xl font-semibold uppercase leading-tight tracking-wide text-ink">
                             {event.title}
                           </h2>
+                          <SurfaceBadge surface={event.surface} />
                           <EventStatusBadge status={event.status} />
                         </div>
                         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
@@ -118,7 +122,7 @@ export default async function UpcomingPage() {
                     <div className="flex flex-col items-end gap-1.5">
                       <Badge
                         tone={
-                          mine?.isOrganizer
+                          organizing
                             ? "brand"
                             : mine?.status === "CONFIRMED"
                               ? "success"
@@ -127,7 +131,7 @@ export default async function UpcomingPage() {
                                 : "neutral"
                         }
                       >
-                        {mine?.isOrganizer
+                        {organizing
                           ? "Organizando"
                           : mine?.status === "CONFIRMED"
                             ? "Você vai"
@@ -148,7 +152,7 @@ export default async function UpcomingPage() {
                         <strong className="font-semibold text-ink">{event.confirmedCount}</strong>/{event.maxPlayers}{" "}
                         confirmados
                       </span>
-                      <span className={cn(isFull && "text-[#86efac]")}>
+                      <span className={cn(isFull && "text-success")}>
                         {isFull ? "Vagas esgotadas" : `${remaining} ${remaining === 1 ? "vaga" : "vagas"}`}
                       </span>
                     </div>
@@ -158,7 +162,7 @@ export default async function UpcomingPage() {
                       tone={isFull ? "success" : remaining <= 3 ? "warning" : "brand"}
                     />
                     {event.waitlistCount > 0 ? (
-                      <p className="text-[11px] text-[#fbd38d]">{event.waitlistCount} na lista de espera</p>
+                      <p className="text-[11px] text-warning">{event.waitlistCount} na lista de espera</p>
                     ) : null}
                   </div>
 
@@ -197,6 +201,15 @@ export default async function UpcomingPage() {
                     </Link>
                     {event.publicToken ? (
                       <ShareEventButton token={event.publicToken} title={event.title} />
+                    ) : null}
+                    {user.role === "ADMIN" ? (
+                      <Link
+                        href={`/admin/eventos?edit=${event.id}#edit-${event.id}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        Editar
+                      </Link>
                     ) : null}
                   </div>
                 </CardBody>

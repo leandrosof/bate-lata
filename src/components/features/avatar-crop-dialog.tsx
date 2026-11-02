@@ -87,12 +87,12 @@ export function AvatarCropDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Reposicionar foto"
-        className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-line-strong bg-[#0b1220] shadow-2xl"
+        className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-line/70 p-3">
           <div className="flex items-center gap-2">
-            <Move className="h-4 w-4 text-[#9db8ff]" aria-hidden />
-            <p className="font-display text-base font-semibold uppercase tracking-wide text-white">
+            <Move className="h-4 w-4 text-brand" aria-hidden />
+            <p className="font-display text-base font-semibold uppercase tracking-wide text-ink">
               Reposicionar foto
             </p>
           </div>
@@ -173,7 +173,7 @@ export function AvatarCropDialog({
             />
           </label>
 
-          {error ? <p className="text-xs font-medium text-[#ff9a9a]">{error}</p> : null}
+          {error ? <p className="text-xs font-medium text-danger">{error}</p> : null}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-line/70 bg-surface-2/30 p-3">

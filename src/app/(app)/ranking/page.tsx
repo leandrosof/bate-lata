@@ -207,11 +207,11 @@ export default async function RankingPage({
                       className={cn(
                         "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
                         entry.position === 1
-                          ? "bg-[rgba(245,185,66,0.18)] text-[#fbd38d]"
+                          ? "bg-[rgba(245,185,66,0.18)] text-warning"
                           : entry.position === 2
-                            ? "bg-white/10 text-white"
+                            ? "bg-ink/10 text-ink"
                             : entry.position === 3
-                              ? "bg-[rgba(249,115,22,0.16)] text-[#fdba74]"
+                              ? "bg-[rgba(249,115,22,0.16)] text-warning"
                               : "text-muted",
                       )}
                     >
@@ -229,7 +229,7 @@ export default async function RankingPage({
                         <span className="block truncate text-sm font-medium text-ink">
                           {entry.name}
                           {isMe ? (
-                            <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-[#7fa2ff]">
+                            <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-brand">
                               você
                             </span>
                           ) : null}
@@ -244,10 +244,10 @@ export default async function RankingPage({
                     </Link>
 
                     <span className="hidden text-center text-sm tabular-nums text-muted sm:block">{entry.played}</span>
-                    <span className="hidden text-center text-sm tabular-nums text-[#86efac] sm:block">{entry.wins}</span>
+                    <span className="hidden text-center text-sm tabular-nums text-success sm:block">{entry.wins}</span>
                     <span className="hidden text-center text-sm tabular-nums text-muted sm:block">{entry.losses}</span>
                     <span className="ml-auto text-right sm:ml-0">
-                      <span className="font-display text-lg font-semibold tabular-nums text-white">{entry.points}</span>
+                      <span className="font-display text-lg font-semibold tabular-nums text-ink">{entry.points}</span>
                       <span className="block text-[9px] uppercase tracking-wider text-muted sm:hidden">pts</span>
                     </span>
                   </li>
@@ -256,7 +256,7 @@ export default async function RankingPage({
             </ol>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2/40 p-3 text-[11px] text-muted">
               <span className="flex items-center gap-1.5">
-                <Medal className="h-3.5 w-3.5 text-[#fbd38d]" aria-hidden />
+                <Medal className="h-3.5 w-3.5 text-warning" aria-hidden />
                 Pontuação: {settings.pointsWin} por vitória + {settings.pointsLoss} por derrota
               </span>
               <span>Empates não são permitidos em partidas oficiais</span>

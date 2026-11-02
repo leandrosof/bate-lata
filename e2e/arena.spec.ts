@@ -168,10 +168,16 @@ test("administrador cria evento e publica aviso", async ({ page }) => {
 
   const today = new Date();
   const dayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
   await page.getByTestId(`calendar-day-${dayKey}`).click();
   await page.locator("#cal-title").fill("Jogo E2E");
+  await page.locator("#cal-start").fill(`${tomorrowKey}T19:00`);
+  await page.locator("#cal-end").fill(`${tomorrowKey}T21:00`);
   await page.locator("#cal-max").fill("10");
   await page.locator("#cal-venue").fill("Arena E2E");
+  await page.locator("#cal-surface").selectOption("COURT");
   await page.getByRole("button", { name: "Criar evento" }).click();
   await expect(page.getByText("Evento criado.")).toBeVisible();
 

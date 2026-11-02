@@ -16,10 +16,10 @@ export function StatCard({
   accent?: "brand" | "success" | "warning" | "danger" | "neutral";
 }) {
   const accents = {
-    brand: "text-[#9db8ff] bg-brand-soft",
-    success: "text-[#86efac] bg-[rgba(34,197,94,0.12)]",
-    warning: "text-[#fbd38d] bg-[rgba(245,185,66,0.12)]",
-    danger: "text-[#ff9a9a] bg-[rgba(240,82,82,0.12)]",
+    brand: "text-brand bg-brand-soft",
+    success: "text-success bg-[rgba(34,197,94,0.12)]",
+    warning: "text-warning bg-[rgba(245,185,66,0.12)]",
+    danger: "text-danger bg-[rgba(240,82,82,0.12)]",
     neutral: "text-muted bg-surface-2",
   } as const;
 

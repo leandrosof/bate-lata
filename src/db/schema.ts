@@ -9,6 +9,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 
 export const userRole = pgEnum("user_role", ["ADMIN", "PLAYER"]);
 export const eventStatus = pgEnum("event_status", ["SCHEDULED", "CANCELLED", "FINISHED"]);
+export const eventSurface = pgEnum("event_surface", ["SAND", "COURT"]);
 export const attendanceStatus = pgEnum("attendance_status", ["CONFIRMED", "WAITLIST", "CANCELLED"]);
 export const drawStatus = pgEnum("draw_status", ["DRAFT", "IN_PROGRESS", "FINISHED", "CANCELLED"]);
 export const gameStatus = pgEnum("game_status", ["NOT_STARTED", "IN_PROGRESS", "FINISHED", "CANCELLED"]);
@@ -110,6 +111,7 @@ export const events = pgTable(
     publicToken: text("public_token"),
     venueName: text("venue_name").notNull(),
     address: text("address"),
+    surface: eventSurface("surface"),
     maxPlayers: integer("max_players").notNull(),
     notes: text("notes"),
     status: eventStatus("status").notNull().default("SCHEDULED"),

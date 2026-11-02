@@ -21,7 +21,7 @@ export function EmptyState({
       )}
     >
       {icon ? (
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-[#9db8ff]">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
           {icon}
         </div>
       ) : null}

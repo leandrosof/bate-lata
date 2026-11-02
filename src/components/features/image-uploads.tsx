@@ -100,7 +100,7 @@ export function LogoUpload({
         </div>
       </div>
       <p className="text-[11px] text-muted">PNG/JPG/WebP, até 2 MB. Recomendado quadrado (512×512).</p>
-      {error ? <p className="text-xs text-[#ff9a9a]">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
       <ConfirmDialog
         open={confirmRemove}
         title="Remover logo"
@@ -206,7 +206,7 @@ export function EventCoverUpload({
         ) : null}
       </div>
       <p className="text-[11px] text-muted">Opcional. Formato paisagem; recomendado 1200×675.</p>
-      {error ? <p className="text-xs text-[#ff9a9a]">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
       <ConfirmDialog
         open={confirmRemove}
         title="Remover capa"

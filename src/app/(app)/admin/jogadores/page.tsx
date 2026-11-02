@@ -72,7 +72,7 @@ export default async function AdminPlayersPage({
                       <p className="truncate text-sm font-semibold text-ink">
                         {player.name}
                         {isSelf ? (
-                          <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-[#7fa2ff]">
+                          <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-brand">
                             você
                           </span>
                         ) : null}

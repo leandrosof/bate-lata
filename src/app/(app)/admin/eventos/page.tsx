@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Briefcase, CalendarDays, Clock, MapPin, Users } from "lucide-react";
+import { Briefcase, CalendarDays, Clock, MapPin, Pencil, Users } from "lucide-react";
 import { setEventStatusAction, updateEventAction } from "@/actions/admin";
 import { ActionButton } from "@/components/ui/action-button";
 import { ActionForm } from "@/components/ui/action-form";
@@ -9,9 +9,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, Label, Textarea } from "@/components/ui/input";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { EventCoverUpload } from "@/components/features/image-uploads";
 import { ShareEventButton } from "@/components/features/share-event-button";
+import { SurfaceBadge } from "@/components/features/surface-badge";
 import { Progress } from "@/components/ui/progress";
 import { listAllEvents } from "@/db/queries/events";
 import { getSettings } from "@/lib/settings";
@@ -115,6 +116,23 @@ function EventFields({
         </div>
       </div>
       <div>
+        <Label htmlFor={`${idPrefix}-surface`} required>
+          Piso
+        </Label>
+        <Select
+          id={`${idPrefix}-surface`}
+          name="surface"
+          defaultValue={event?.surface ?? ""}
+          required
+        >
+          <option value="" disabled>
+            Selecione areia ou quadra
+          </option>
+          <option value="COURT">Quadra</option>
+          <option value="SAND">Areia</option>
+        </Select>
+      </div>
+      <div>
         <Label htmlFor={`${idPrefix}-notes`}>Observações</Label>
         <Textarea
           id={`${idPrefix}-notes`}
@@ -128,7 +146,13 @@ function EventFields({
   );
 }
 
-export default async function AdminEventsPage() {
+export default async function AdminEventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ edit?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const editId = typeof params.edit === "string" ? params.edit : undefined;
   const settings = await getSettings();
   const events = await listAllEvents(80);
 
@@ -137,7 +161,7 @@ export default async function AdminEventsPage() {
       <Card>
         <CardBody className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-display text-lg font-semibold uppercase tracking-wide text-white">
+            <p className="font-display text-lg font-semibold uppercase tracking-wide text-ink">
               Agendar novo evento
             </p>
             <p className="mt-1 text-sm text-muted">
@@ -169,9 +193,10 @@ export default async function AdminEventsPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <p className="font-display text-lg font-semibold uppercase tracking-wide text-white">
+                          <p className="font-display text-lg font-semibold uppercase tracking-wide text-ink">
                             {event.title}
                           </p>
+                          <SurfaceBadge surface={event.surface} />
                           <Badge
                             tone={
                               event.status === "SCHEDULED"
@@ -200,7 +225,7 @@ export default async function AdminEventsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-display text-2xl font-bold leading-none text-white">
+                        <p className="font-display text-2xl font-bold leading-none text-ink">
                           {event.confirmedCount}
                           <span className="text-sm text-muted">/{event.maxPlayers}</span>
                         </p>
@@ -248,9 +273,19 @@ export default async function AdminEventsPage() {
                       {event.publicToken ? (
                         <ShareEventButton token={event.publicToken} title={event.title} />
                       ) : null}
+                      <Link
+                        href={`/admin/eventos?edit=${event.id}#edit-${event.id}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        Editar
+                      </Link>
                     </div>
 
                     <Disclosure
+                      id={`edit-${event.id}`}
+                      defaultOpen={editId === event.id}
+                      className="scroll-mt-24"
                       title="Editar evento"
                       subtitle={`${event.confirmedCount} confirmados · ${event.waitlistCount} na espera`}
                       action={<Briefcase className="h-4 w-4 text-muted" aria-hidden />}
