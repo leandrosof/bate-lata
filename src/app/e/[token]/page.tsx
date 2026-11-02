@@ -98,7 +98,14 @@ export default async function PublicEventPage({
           />
           <div className="absolute inset-0 bg-gradient-to-br from-[#0b1220]/80 via-[#0b1220]/60 to-[#102a5c]/70" aria-hidden />
           <div className="relative px-5 py-8 text-center sm:px-10 sm:py-12">
-            <Badge tone={isPast ? "neutral" : "success"}>
+            <Badge
+              tone={isPast ? "neutral" : "success"}
+              className={
+                isPast
+                  ? "border-white/25 bg-white/10 text-white"
+                  : "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
+              }
+            >
               {isPast ? "Evento encerrado" : "Inscrições abertas"}
             </Badge>
             <h1 className="mt-3 font-display text-4xl font-bold uppercase leading-none tracking-tight text-white sm:text-6xl">
@@ -116,7 +123,7 @@ export default async function PublicEventPage({
             </p>
             {event.surface ? (
               <div className="mt-2 flex justify-center">
-                <SurfaceBadge surface={event.surface} />
+                <SurfaceBadge surface={event.surface} onDark />
               </div>
             ) : null}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
@@ -155,7 +162,7 @@ export default async function PublicEventPage({
               )}
             </div>
             <div className="mt-4 flex justify-center">
-              <ShareEventButton token={token} title={event.title} />
+              <ShareEventButton token={token} title={event.title} onDark />
             </div>
           </div>
         </div>
