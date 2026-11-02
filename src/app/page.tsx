@@ -2,6 +2,8 @@ import Link from "next/link";
 import {
   BarChart3,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Shuffle,
   Sparkles,
@@ -14,17 +16,35 @@ import { buttonVariants } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
-import { listUpcomingEvents } from "@/db/queries/events";
+import { listFinishedPublicEvents, listUpcomingEvents } from "@/db/queries/events";
 import { listRecentFinishedGames } from "@/db/queries/games";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { TeamPill } from "@/components/features/team-card";
 import { surfaceCover } from "@/lib/surface";
 import { formatDateLong, formatTime } from "@/lib/time";
 
-export default async function LandingPage() {
+const AGENDA_PAGE_SIZE = 6;
+
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await getSessionUser();
   const settings = await getSettings();
-  const upcoming = (await listUpcomingEvents()).filter((event) => event.publicToken).slice(0, 3);
+  const params = await searchParams;
+  const allUpcoming = (await listUpcomingEvents()).filter((event) => event.publicToken);
+  const allFinished = await listFinishedPublicEvents();
+  const agendaMode = params.agenda === "encerrados" ? "finished" : "upcoming";
+  const agendaEvents = agendaMode === "finished" ? allFinished : allUpcoming;
+  const totalPages = Math.max(1, Math.ceil(agendaEvents.length / AGENDA_PAGE_SIZE));
+  const requestedPage = Number(typeof params.pagina === "string" ? params.pagina : "1");
+  const page = Number.isFinite(requestedPage)
+    ? Math.min(Math.max(Math.trunc(requestedPage), 1), totalPages)
+    : 1;
+  const pageEvents = agendaEvents.slice((page - 1) * AGENDA_PAGE_SIZE, page * AGENDA_PAGE_SIZE);
+  const agendaHref = (nextPage: number) =>
+    `/?agenda=${agendaMode === "finished" ? "encerrados" : "proximos"}&pagina=${nextPage}#agenda`;
   const recent = await listRecentFinishedGames(4);
   const logoUrl = settings.logoData
     ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
@@ -163,18 +183,46 @@ export default async function LandingPage() {
               <p className="text-sm text-muted">Ranking e resultados atualizados a cada jogo</p>
             </div>
           </div>
-          {upcoming.length > 0 ? (
-            <section className="mt-10 space-y-3">
-              <div className="flex items-end justify-between gap-2">
+          {allUpcoming.length > 0 || allFinished.length > 0 ? (
+            <section id="agenda" className="mt-10 scroll-mt-24 space-y-3">
+              <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">Agenda</p>
                   <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
-                    Próximas partidas
+                    {agendaMode === "finished" ? "Eventos encerrados" : "Próximas partidas"}
                   </h2>
                 </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Link
+                    href="/?agenda=proximos#agenda"
+                    className={cn(
+                      buttonVariants({ variant: agendaMode === "upcoming" ? "primary" : "secondary", size: "sm" }),
+                    )}
+                  >
+                    Próximos
+                  </Link>
+                  <Link
+                    href="/?agenda=encerrados#agenda"
+                    className={cn(
+                      buttonVariants({ variant: agendaMode === "finished" ? "primary" : "secondary", size: "sm" }),
+                    )}
+                  >
+                    Encerrados
+                  </Link>
+                  <span className="ml-1 text-xs text-muted">
+                    {agendaEvents.length} {agendaEvents.length === 1 ? "evento" : "eventos"}
+                  </span>
+                </div>
               </div>
+              {pageEvents.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
+                  {agendaMode === "finished"
+                    ? "Nenhum evento encerrado ainda."
+                    : "Nenhum jogo agendado no momento."}
+                </p>
+              ) : (
               <div className="grid gap-3 sm:grid-cols-3">
-                {upcoming.map((event) => (
+                {pageEvents.map((event) => (
                   <Link
                     key={event.id}
                     href={`/e/${event.publicToken}`}
@@ -206,14 +254,63 @@ export default async function LandingPage() {
                       <p className="text-[11px] text-muted">{event.venueName}</p>
                       <div className="flex items-center justify-between gap-2">
                         <SurfaceBadge surface={event.surface} />
-                        <p className="text-[11px] font-semibold text-success">
-                          {Math.max(event.maxPlayers - event.confirmedCount, 0)} vaga(s)
+                        <p
+                          className={cn(
+                            "text-[11px] font-semibold",
+                            agendaMode === "finished" ? "text-muted" : "text-success",
+                          )}
+                        >
+                          {agendaMode === "finished"
+                            ? `${event.confirmedCount} confirmados`
+                            : `${Math.max(event.maxPlayers - event.confirmedCount, 0)} vaga(s)`}
                         </p>
                       </div>
                     </div>
                   </Link>
                 ))}
               </div>
+              )}
+              {totalPages > 1 ? (
+                <nav className="flex flex-wrap items-center justify-between gap-2 pt-1" aria-label="Paginação da agenda">
+                  {page > 1 ? (
+                    <Link
+                      href={agendaHref(page - 1)}
+                      className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+                    >
+                      <ChevronLeft className="h-4 w-4" aria-hidden />
+                      Anterior
+                    </Link>
+                  ) : (
+                    <span
+                      aria-disabled="true"
+                      className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "pointer-events-none opacity-40")}
+                    >
+                      <ChevronLeft className="h-4 w-4" aria-hidden />
+                      Anterior
+                    </span>
+                  )}
+                  <span className="text-xs font-medium text-muted">
+                    Página {page} de {totalPages}
+                  </span>
+                  {page < totalPages ? (
+                    <Link
+                      href={agendaHref(page + 1)}
+                      className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    </Link>
+                  ) : (
+                    <span
+                      aria-disabled="true"
+                      className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "pointer-events-none opacity-40")}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    </span>
+                  )}
+                </nav>
+              ) : null}
             </section>
           ) : null}
 

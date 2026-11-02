@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { db } from "../client";
 import { attendances, draws, events, games, users } from "../schema";
 import type { EventRow } from "../schema";
@@ -86,6 +86,16 @@ export async function listUpcomingEvents(reference = new Date()): Promise<EventS
     .from(events)
     .where(and(eq(events.status, "SCHEDULED"), gte(events.startsAt, threshold)))
     .orderBy(asc(events.startsAt));
+  return attachCounts(rows);
+}
+
+export async function listFinishedPublicEvents(limit = 80): Promise<EventSummary[]> {
+  const rows = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.status, "FINISHED"), isNotNull(events.publicToken)))
+    .orderBy(desc(events.startsAt))
+    .limit(limit);
   return attachCounts(rows);
 }
 
