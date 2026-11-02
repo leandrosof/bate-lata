@@ -32,6 +32,7 @@ export default async function AdminSettingsPage() {
             variant="primary"
             submitIcon={<Save className="h-4 w-4" aria-hidden />}
           >
+            <div key={`settings-fields-${settings.updatedAt.getTime()}`} className="space-y-3.5">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="siteName" required>
@@ -168,6 +169,7 @@ export default async function AdminSettingsPage() {
                 defaultChecked={settings.allowWaitlist}
               />
             </div>
+            </div>
           </ActionForm>
         </CardBody>
       </Card>
@@ -265,7 +267,10 @@ export default async function AdminSettingsPage() {
                       submitLabel="Salvar temporada"
                       size="sm"
                     >
-                      <div className="grid gap-3 sm:grid-cols-3">
+                      <div
+                        key={`season-fields-${season.id}-${season.name}-${season.startsOn.getTime()}-${season.endsOn?.getTime() ?? 0}-${season.isActive}`}
+                        className="grid gap-3 sm:grid-cols-3"
+                      >
                         <div className="sm:col-span-3">
                           <Label htmlFor={`sn-${season.id}`}>Nome</Label>
                           <Input

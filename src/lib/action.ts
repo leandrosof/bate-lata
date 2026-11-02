@@ -1,3 +1,4 @@
+import { refresh } from "next/cache";
 import type { ZodError } from "zod";
 
 export type ActionState =
@@ -21,6 +22,7 @@ export function fail(message: string, fieldErrors?: Record<string, string[]>): A
 }
 
 export function success(message?: string): ActionState {
+  refresh();
   return { ok: true, message };
 }
 

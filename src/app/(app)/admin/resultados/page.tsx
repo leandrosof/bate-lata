@@ -101,7 +101,7 @@ export default async function AdminResultsPage() {
                     size="sm"
                     confirmMessage="Confirmar correção deste resultado?"
                   >
-                    <div className="grid grid-cols-2 gap-3">
+                    <div key={`result-fields-${game.id}-${game.scoreA}-${game.scoreB}`} className="grid grid-cols-2 gap-3">
                       <div>
                         <Label htmlFor={`res-a-${game.id}`}>{game.teamAName}</Label>
                         <Input

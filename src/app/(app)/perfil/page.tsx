@@ -100,7 +100,11 @@ export default async function ProfilePage() {
               <CardTitle>Dados do perfil</CardTitle>
             </CardHeader>
             <CardBody className="pt-2">
-              <ActionForm action={updateProfileAction} submitLabel="Salvar alterações">
+              <ActionForm
+                action={updateProfileAction}
+                submitLabel="Salvar alterações"
+              >
+                <div key={`profile-fields-${user.id}-${user.updatedAt.getTime()}`} className="space-y-3.5">
                 <div>
                   <Label htmlFor="name" required>
                     Nome
@@ -123,6 +127,7 @@ export default async function ProfilePage() {
                   <p className="mt-1 text-[11px] text-muted">
                     O e-mail é usado para login e recuperação de senha.
                   </p>
+                </div>
                 </div>
               </ActionForm>
             </CardBody>

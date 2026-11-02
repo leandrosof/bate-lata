@@ -123,6 +123,10 @@ export default async function AdminAnnouncementsPage() {
                       hiddenFields={{ announcementId: announcement.id }}
                       submitLabel="Salvar aviso"
                     >
+                      <div
+                        key={`announcement-fields-${announcement.id}-${announcement.title}-${announcement.body}-${announcement.eventId ?? ""}-${announcement.pinned}`}
+                        className="space-y-3.5"
+                      >
                       <div>
                         <Label htmlFor={`t-${announcement.id}`} required>
                           Título
@@ -171,6 +175,7 @@ export default async function AdminAnnouncementsPage() {
                             defaultChecked={announcement.pinned}
                           />
                         </div>
+                      </div>
                       </div>
                     </ActionForm>
                   </Disclosure>

@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { VariantProps } from "class-variance-authority";
 import type { ActionState } from "@/lib/action";
 import { cn } from "@/lib/utils";
-import { ActionFeedback } from "./action-feedback";
 import { Button, buttonVariants } from "./button";
 import { ConfirmDialog } from "./confirm-dialog";
+import { useToast } from "./toast-provider";
 
 export function ActionButton({
   action,
@@ -23,7 +23,6 @@ export function ActionButton({
   icon,
   pendingLabel,
   formClassName,
-  feedbackClassName,
   disabled,
   title,
   showFeedback,
@@ -37,17 +36,22 @@ export function ActionButton({
   icon?: React.ReactNode;
   pendingLabel?: string;
   formClassName?: string;
-  feedbackClassName?: string;
   disabled?: boolean;
   title?: string;
   showFeedback?: boolean;
   children?: React.ReactNode;
 } & VariantProps<typeof buttonVariants>) {
   const [state, formAction, pending] = useActionState(action, null);
+  const { toast } = useToast();
   const renderFeedback = showFeedback ?? !size?.startsWith("icon");
   const formRef = useRef<HTMLFormElement>(null);
   const bypassConfirm = useRef(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!renderFeedback || !state?.message) return;
+    toast({ message: state.message, tone: state.ok ? "success" : "error" });
+  }, [renderFeedback, state, toast]);
 
   return (
     <>
@@ -79,7 +83,6 @@ export function ActionButton({
           {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon}
           {pending ? (pendingLabel ?? "Aguarde...") : children}
         </Button>
-        {renderFeedback ? <ActionFeedback state={state} className={feedbackClassName} /> : null}
       </form>
 
       {confirmMessage ? (

@@ -19,6 +19,7 @@ import {
   toggleOrganizerAction,
 } from "@/actions/attendance";
 import { AttendanceControls } from "@/components/features/attendance-controls";
+import { AutoRefresh } from "@/components/features/auto-refresh";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
 import { EventPicker } from "@/components/features/event-picker";
@@ -69,6 +70,7 @@ export default async function AttendancePage({
 
   return (
     <div>
+      <AutoRefresh intervalMs={15000} />
       <PageHeader
         eyebrow="Lista do próximo encontro"
         title="Presenças"

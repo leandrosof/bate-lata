@@ -4,10 +4,10 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
 import type { ActionState } from "@/lib/action";
 import { cn } from "@/lib/utils";
-import { ActionFeedback } from "./action-feedback";
 import { Alert } from "./alert";
 import { ConfirmDialog } from "./confirm-dialog";
 import { SubmitButton } from "./submit-button";
+import { useToast } from "./toast-provider";
 import { buttonVariants } from "./button";
 
 export function ActionForm({
@@ -43,6 +43,7 @@ export function ActionForm({
   submitClassName?: string;
 } & VariantProps<typeof buttonVariants>) {
   const [state, formAction] = useActionState(action, null);
+  const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const bypassConfirm = useRef(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -50,6 +51,11 @@ export function ActionForm({
   useEffect(() => {
     if (state?.ok && resetOnSuccess) formRef.current?.reset();
   }, [state, resetOnSuccess]);
+
+  useEffect(() => {
+    if (!state?.message) return;
+    toast({ message: state.message, tone: state.ok ? "success" : "error" });
+  }, [state, toast]);
 
   const fieldErrorMessages = state?.fieldErrors
     ? Object.entries(state.fieldErrors).flatMap(([field, messages]) =>
@@ -79,8 +85,6 @@ export function ActionForm({
           : null}
 
         {children}
-
-        <ActionFeedback state={state} />
 
         {state && !state.ok && fieldErrorMessages.length > 0 ? (
           <Alert tone="danger">

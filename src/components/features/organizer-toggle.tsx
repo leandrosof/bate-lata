@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toggleOrganizerAction } from "@/actions/attendance";
 import { ensurePlayerAction } from "@/actions/racha";
 import type { ActionState } from "@/lib/action";
 import { Switch } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast-provider";
 
 export function OrganizerToggle({
   eventId,
@@ -19,8 +20,8 @@ export function OrganizerToggle({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   if (!isAdmin) return null;
 
@@ -33,7 +34,6 @@ export function OrganizerToggle({
 
   function handleChange(checked: boolean) {
     if (!attendanceId && !checked) return;
-    setError(null);
 
     startTransition(async () => {
       const formData = new FormData();
@@ -48,27 +48,21 @@ export function OrganizerToggle({
       }
 
       if (!result || !result.ok) {
-        setError(result?.message ?? "Não foi possível atualizar sua presença.");
+        toast({ tone: "error", message: result?.message ?? "Não foi possível atualizar sua presença." });
         return;
       }
+      toast({ tone: "success", message: result.message ?? "Presença atualizada." });
       router.refresh();
     });
   }
 
   return (
-    <div className="space-y-1">
-      <Switch
-        label="Vou jogar"
-        description={description}
-        checked={playing}
-        disabled={pending}
-        onChange={(event) => handleChange(event.target.checked)}
-      />
-      {error ? (
-        <p className="text-xs font-medium text-danger" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <Switch
+      label="Vou jogar"
+      description={description}
+      checked={playing}
+      disabled={pending}
+      onChange={(event) => handleChange(event.target.checked)}
+    />
   );
 }

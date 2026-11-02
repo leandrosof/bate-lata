@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Inter } from "next/font/google";
+import { ToastProvider } from "@/components/ui/toast-provider";
 import { getSettings } from "@/lib/settings";
 import "./globals.css";
 
@@ -67,7 +68,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

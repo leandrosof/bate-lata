@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast-provider";
 
 function useUploader() {
   const router = useRouter();
+  const { toast } = useToast();
   const [busy, setBusy] = useState<"upload" | "remove" | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  return { router, busy, setBusy, error, setError, confirmRemove, setConfirmRemove };
+  return { router, toast, busy, setBusy, confirmRemove, setConfirmRemove };
 }
 
 export function LogoUpload({
@@ -22,10 +23,9 @@ export function LogoUpload({
   version?: number | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { router, busy, setBusy, error, setError, confirmRemove, setConfirmRemove } = useUploader();
+  const { router, toast, busy, setBusy, confirmRemove, setConfirmRemove } = useUploader();
 
   async function upload(file: File) {
-    setError(null);
     setBusy("upload");
     try {
       const body = new FormData();
@@ -33,10 +33,13 @@ export function LogoUpload({
       const response = await fetch("/api/logo", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        setError(data?.error ?? "Não foi possível enviar a logo.");
+        toast({ tone: "error", message: data?.error ?? "Não foi possível enviar a logo." });
         return;
       }
+      toast({ tone: "success", message: "Logo atualizada." });
       router.refresh();
+    } catch {
+      toast({ tone: "error", message: "Falha de conexão. Tente novamente." });
     } finally {
       setBusy(null);
       if (inputRef.current) inputRef.current.value = "";
@@ -46,8 +49,15 @@ export function LogoUpload({
   async function remove() {
     setBusy("remove");
     try {
-      await fetch("/api/logo", { method: "DELETE" });
+      const response = await fetch("/api/logo", { method: "DELETE" });
+      if (!response.ok) {
+        toast({ tone: "error", message: "Não foi possível remover a logo." });
+        return;
+      }
+      toast({ tone: "success", message: "Logo removida." });
       router.refresh();
+    } catch {
+      toast({ tone: "error", message: "Falha de conexão. Tente novamente." });
     } finally {
       setBusy(null);
     }
@@ -100,7 +110,6 @@ export function LogoUpload({
         </div>
       </div>
       <p className="text-[11px] text-muted">PNG/JPG/WebP, até 2 MB. Recomendado quadrado (512×512).</p>
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
       <ConfirmDialog
         open={confirmRemove}
         title="Remover logo"
@@ -126,10 +135,9 @@ export function EventCoverUpload({
   version?: number | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { router, busy, setBusy, error, setError, confirmRemove, setConfirmRemove } = useUploader();
+  const { router, toast, busy, setBusy, confirmRemove, setConfirmRemove } = useUploader();
 
   async function upload(file: File) {
-    setError(null);
     setBusy("upload");
     try {
       const body = new FormData();
@@ -137,10 +145,13 @@ export function EventCoverUpload({
       const response = await fetch(`/api/event-cover/${eventId}`, { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        setError(data?.error ?? "Não foi possível enviar a capa.");
+        toast({ tone: "error", message: data?.error ?? "Não foi possível enviar a capa." });
         return;
       }
+      toast({ tone: "success", message: "Capa atualizada." });
       router.refresh();
+    } catch {
+      toast({ tone: "error", message: "Falha de conexão. Tente novamente." });
     } finally {
       setBusy(null);
       if (inputRef.current) inputRef.current.value = "";
@@ -150,8 +161,15 @@ export function EventCoverUpload({
   async function remove() {
     setBusy("remove");
     try {
-      await fetch(`/api/event-cover/${eventId}`, { method: "DELETE" });
+      const response = await fetch(`/api/event-cover/${eventId}`, { method: "DELETE" });
+      if (!response.ok) {
+        toast({ tone: "error", message: "Não foi possível remover a capa." });
+        return;
+      }
+      toast({ tone: "success", message: "Capa removida." });
       router.refresh();
+    } catch {
+      toast({ tone: "error", message: "Falha de conexão. Tente novamente." });
     } finally {
       setBusy(null);
     }
@@ -206,7 +224,6 @@ export function EventCoverUpload({
         ) : null}
       </div>
       <p className="text-[11px] text-muted">Opcional. Formato paisagem; recomendado 1200×675.</p>
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
       <ConfirmDialog
         open={confirmRemove}
         title="Remover capa"

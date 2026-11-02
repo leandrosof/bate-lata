@@ -302,7 +302,12 @@ export default async function AdminEventsPage({
                         hiddenFields={{ eventId: event.id }}
                         submitLabel="Salvar evento"
                       >
-                        <EventFields event={event} timeZone={settings.timezone} idPrefix={`edit-${event.id}`} />
+                        <EventFields
+                          key={`event-fields-${event.id}-${event.updatedAt.getTime()}`}
+                          event={event}
+                          timeZone={settings.timezone}
+                          idPrefix={`edit-${event.id}`}
+                        />
                       </ActionForm>
                       <Alert tone="warning" className="mt-3">
                         Alterar data, local ou limite não remove confirmações existentes. Se o novo limite for menor

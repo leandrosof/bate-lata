@@ -31,6 +31,7 @@ import {
   substitutePlayerAction,
   undoRachaAction,
 } from "@/actions/racha";
+import { AutoRefresh } from "@/components/features/auto-refresh";
 import { EventPicker } from "@/components/features/event-picker";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { QueueSwapDialog } from "@/components/features/queue-swap-dialog";
@@ -127,6 +128,7 @@ export default async function RachaPage({
 
   return (
     <div>
+      <AutoRefresh intervalMs={15000} />
       <PageHeader
         eyebrow="Jogos livres"
         title="Racha"
@@ -503,7 +505,7 @@ export default async function RachaPage({
                           variant="secondary"
                           size="sm"
                         >
-                          <div className="grid grid-cols-2 gap-3">
+                          <div key={`score-fields-${game.id}-${game.scoreA}-${game.scoreB}`} className="grid grid-cols-2 gap-3">
                             <div>
                               <Label htmlFor="scoreA">{game.teamAName}</Label>
                               <Input

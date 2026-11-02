@@ -285,7 +285,7 @@ export default async function MatchesPage({
                 size="md"
                 submitIcon={<RotateCcw className="h-4 w-4" aria-hidden />}
               >
-                <div className="grid grid-cols-2 gap-3">
+                <div key={`score-fields-${game.id}-${game.scoreA}-${game.scoreB}`} className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="scoreA">{game.teamAName}</Label>
                     <Input
@@ -329,7 +329,7 @@ export default async function MatchesPage({
                 confirmMessage="Corrigir este resultado já registrado?"
                 submitIcon={<Flame className="h-4 w-4" aria-hidden />}
               >
-                <div className="grid grid-cols-2 gap-3">
+                <div key={`result-fields-${game.id}-${game.scoreA}-${game.scoreB}`} className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="correctionA">{game.teamAName}</Label>
                     <Input

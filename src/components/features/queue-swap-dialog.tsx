@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ArrowLeftRight, Loader2, X } from "lucide-react";
 import { swapQueuePlayersAction } from "@/actions/racha";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast-provider";
 import type { ActionState } from "@/lib/action";
 import { cn } from "@/lib/utils";
 
@@ -25,10 +26,16 @@ export function QueueSwapDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("");
-  const [state, formAction, pending] = useActionState(
+  const { toast } = useToast();
+  const [, formAction, pending] = useActionState(
     async (previous: ActionState, formData: FormData) => {
       const result = await swapQueuePlayersAction(previous, formData);
-      if (result?.ok) setOpen(false);
+      if (result?.ok) {
+        setOpen(false);
+        toast({ tone: "success", message: result.message ?? "Jogadores trocados." });
+      } else {
+        toast({ tone: "error", message: result?.message ?? "Não foi possível trocar os jogadores." });
+      }
       return result;
     },
     null,
@@ -140,12 +147,6 @@ export function QueueSwapDialog({
                       </label>
                     ))}
                   </div>
-
-                  {state && !state.ok && state.message ? (
-                    <p className="text-xs font-medium text-danger" role="alert">
-                      {state.message}
-                    </p>
-                  ) : null}
 
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>

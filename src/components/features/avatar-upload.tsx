@@ -4,10 +4,10 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Loader2, Move, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AvatarCropDialog } from "@/components/features/avatar-crop-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast-provider";
 
 export function AvatarUpload({
   userId,
@@ -21,19 +21,15 @@ export function AvatarUpload({
   hasOriginal?: boolean;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<"upload" | "remove" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
 
   async function upload(file: File) {
-    setError(null);
-    setSuccess(null);
-
     if (file.size > 2 * 1024 * 1024) {
-      setError("A imagem deve ter no máximo 2 MB.");
+      toast({ tone: "error", message: "A imagem deve ter no máximo 2 MB." });
       return;
     }
 
@@ -44,13 +40,13 @@ export function AvatarUpload({
       const response = await fetch("/api/perfil/avatar", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        setError(data?.error ?? "Não foi possível enviar a imagem.");
+        toast({ tone: "error", message: data?.error ?? "Não foi possível enviar a imagem." });
         return;
       }
-      setSuccess("Foto atualizada.");
+      toast({ tone: "success", message: "Foto atualizada." });
       router.refresh();
     } catch {
-      setError("Falha de conexão. Tente novamente.");
+      toast({ tone: "error", message: "Falha de conexão. Tente novamente." });
     } finally {
       setBusy(null);
       if (inputRef.current) inputRef.current.value = "";
@@ -58,20 +54,18 @@ export function AvatarUpload({
   }
 
   async function remove() {
-    setError(null);
-    setSuccess(null);
     setBusy("remove");
     try {
       const response = await fetch("/api/perfil/avatar", { method: "DELETE" });
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(data?.error ?? "Não foi possível remover a foto.");
+        toast({ tone: "error", message: data?.error ?? "Não foi possível remover a foto." });
         return;
       }
-      setSuccess("Foto removida.");
+      toast({ tone: "success", message: "Foto removida." });
       router.refresh();
     } catch {
-      setError("Falha de conexão. Tente novamente.");
+      toast({ tone: "error", message: "Falha de conexão. Tente novamente." });
     } finally {
       setBusy(null);
     }
@@ -118,13 +112,11 @@ export function AvatarUpload({
         </div>
       </div>
       <p className="text-[11px] text-muted">JPG, PNG, WebP ou AVIF · até 2 MB. A imagem é recortada em 256×256.</p>
-      {error ? <Alert tone="danger">{error}</Alert> : null}
-      {success ? <Alert tone="success">{success}</Alert> : null}
       <AvatarCropDialog
         open={cropOpen}
         onClose={() => setCropOpen(false)}
         onSaved={() => {
-          setSuccess("Foto reposicionada.");
+          toast({ tone: "success", message: "Foto reposicionada." });
           router.refresh();
         }}
       />
