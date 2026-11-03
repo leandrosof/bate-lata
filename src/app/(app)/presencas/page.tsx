@@ -25,6 +25,7 @@ import {
 import { AttendanceControls } from "@/components/features/attendance-controls";
 import { AutoRefresh } from "@/components/features/auto-refresh";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
+import { PaymentProofPreview } from "@/components/features/payment-proof-preview";
 import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
 import { EventPicker } from "@/components/features/event-picker";
 import { EventStatusBadge } from "@/components/features/status-badge";
@@ -276,36 +277,16 @@ export default async function AttendancePage({
                       </div>
                       {isAdmin && player.paymentProofId ? (
                         <div className="w-full rounded-lg border border-line bg-surface-2/50 p-2 text-[11px] text-muted">
-                          <a
-                            href={`/api/payment-proof/${player.attendanceId}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Abrir comprovante em tela maior"
-                            className="block cursor-zoom-in"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`/api/payment-proof/${player.attendanceId}`}
-                              alt={`Comprovante de ${player.name}`}
-                              className="max-h-44 w-full rounded-md border border-line object-contain"
-                            />
-                          </a>
-                          <p className="mt-1 flex flex-wrap items-center justify-between gap-2">
-                            <span>
-                              Comprovante de{" "}
-                              {player.paymentProofImageBytes
+                          <PaymentProofPreview
+                            attendanceId={player.attendanceId}
+                            title={`Comprovante de ${player.name}`}
+                            meta={`Comprovante de ${
+                              player.paymentProofImageBytes
                                 ? `${Math.max(1, Math.round(player.paymentProofImageBytes / 1024))} KB`
-                                : "imagem indisponível"}
-                            </span>
-                            <a
-                              href={`/api/payment-proof/${player.attendanceId}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-semibold text-brand hover:underline"
-                            >
-                              Ver em tela maior
-                            </a>
-                          </p>
+                                : "imagem indisponível"
+                            }`}
+                            imageClassName="max-h-44"
+                          />
                           {player.paymentProofNote ? (
                             <p className="mt-0.5 whitespace-pre-line text-ink/80">
                               Comentário: {player.paymentProofNote}

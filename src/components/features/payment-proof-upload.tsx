@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Loader2, Trash2, Upload } from "lucide-react";
 import { compressImageFile } from "@/lib/image-compression";
+import { PaymentProofPreview } from "@/components/features/payment-proof-preview";
 import { useToast } from "@/components/ui/toast-provider";
 
 export function PaymentProofUpload({
@@ -103,22 +104,11 @@ export function PaymentProofUpload({
     return (
       <div className="space-y-2 rounded-xl border border-line bg-surface-2/60 p-2 text-left">
         <p className="text-xs font-semibold text-ink">Comprovante enviado</p>
-        <a
-          href={`/api/payment-proof/${attendanceId}`}
-          target="_blank"
-          rel="noreferrer"
-          className="block"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/payment-proof/${attendanceId}`}
-            alt="Seu comprovante Pix"
-            className="max-h-52 w-full rounded-lg border border-line bg-white object-contain"
-          />
-        </a>
-        <p className="text-center text-[10px] font-medium text-brand">
-          Toque na imagem para ampliar.
-        </p>
+        <PaymentProofPreview
+          attendanceId={attendanceId}
+          title="Seu comprovante Pix"
+          imageClassName="max-h-52"
+        />
         <p className="text-[11px] text-muted">
           Aguardando análise do administrador. Você pode remover e enviar outro enquanto não
           for analisado.
