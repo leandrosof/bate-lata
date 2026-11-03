@@ -70,8 +70,8 @@ export async function createEventAction(
     const paymentMode = parsed.data.paymentMode;
     const priceCents =
       paymentMode === "PAID" ? Math.round((parsed.data.price ?? 0) * 100) : null;
-    const autoPaymentReview =
-      paymentMode === "PAID" && parsed.data.autoPaymentReview === true;
+    const paymentProofUpload =
+      paymentMode === "PAID" && parsed.data.paymentProofUpload === true;
     if (paymentMode === "PAID" && !currentSettings.pixKey?.trim()) {
       throw new AppError("Configure a chave Pix nas configurações antes de criar um evento pago.");
     }
@@ -90,7 +90,7 @@ export async function createEventAction(
         maxPlayers: parsed.data.maxPlayers,
         paymentMode,
         priceCents,
-        autoPaymentReview,
+        paymentProofUpload,
         notes: parsed.data.notes?.trim() || null,
         rotationRule: parsed.data.rotationRule,
         maxStreak: parsed.data.maxStreak,
@@ -166,8 +166,8 @@ export async function updateEventAction(
     const paymentMode = parsed.data.paymentMode;
     const priceCents =
       paymentMode === "PAID" ? Math.round((parsed.data.price ?? 0) * 100) : null;
-    const autoPaymentReview =
-      paymentMode === "PAID" && parsed.data.autoPaymentReview === true;
+    const paymentProofUpload =
+      paymentMode === "PAID" && parsed.data.paymentProofUpload === true;
     if (paymentMode === "PAID" && !currentSettings.pixKey?.trim()) {
       throw new AppError("Configure a chave Pix nas configurações antes de salvar um evento pago.");
     }
@@ -208,7 +208,7 @@ export async function updateEventAction(
         maxPlayers: parsed.data.maxPlayers,
         paymentMode,
         priceCents,
-        autoPaymentReview,
+        paymentProofUpload,
         notes: parsed.data.notes?.trim() || null,
         rotationRule: parsed.data.rotationRule,
         maxStreak: parsed.data.maxStreak,

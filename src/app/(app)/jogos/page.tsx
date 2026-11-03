@@ -89,6 +89,7 @@ export default async function UpcomingPage() {
             const organizing = Boolean(mine?.isOrganizer) || (user.role === "ADMIN" && !mine);
             const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
             const isFull = remaining === 0;
+            const eventIsOpen = event.status === "SCHEDULED";
 
             return (
               <Card key={event.id}>
@@ -186,7 +187,11 @@ export default async function UpcomingPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {user.role === "ADMIN" ? (
+                    {!eventIsOpen ? (
+                      <span className="rounded-full border border-line bg-surface-2/60 px-3 py-1 text-xs font-semibold text-muted">
+                        Inscrições encerradas
+                      </span>
+                    ) : user.role === "ADMIN" ? (
                       <OrganizerToggle
                         eventId={event.id}
                         attendanceId={mine?.attendanceId}
@@ -202,7 +207,7 @@ export default async function UpcomingPage() {
                         allowWaitlist={settings.allowWaitlist}
                         isOrganizer={Boolean(mine?.isOrganizer)}
                         attendanceId={mine?.attendanceId}
-                        autoPaymentReview={event.autoPaymentReview}
+                        paymentProofUpload={event.paymentProofUpload}
                         requiresPayment={event.paymentMode === "PAID"}
                         size="sm"
                         block={false}

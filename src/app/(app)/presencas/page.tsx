@@ -76,6 +76,7 @@ export default async function AttendancePage({
   const reservedCount = (roster?.confirmed.length ?? 0) + (roster?.pendingPayment.length ?? 0);
   const isFull = Boolean(selected && roster && reservedCount >= selected.maxPlayers);
   const remaining = selected ? Math.max(selected.maxPlayers - reservedCount, 0) : 0;
+  const eventIsOpen = Boolean(selected && selected.status === "SCHEDULED");
 
   return (
     <div>
@@ -191,7 +192,11 @@ export default async function AttendancePage({
                 </div>
               </div>
 
-              {isAdmin ? (
+              {!eventIsOpen ? (
+                <p className="rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-center text-xs text-muted">
+                  Inscrições encerradas. Não é mais possível confirmar presença.
+                </p>
+              ) : isAdmin ? (
                 <OrganizerToggle
                   eventId={selected.id}
                   attendanceId={mine?.attendanceId}
@@ -207,7 +212,7 @@ export default async function AttendancePage({
                   allowWaitlist={settings.allowWaitlist}
                   isOrganizer={Boolean(mine?.isOrganizer)}
                   attendanceId={mine?.attendanceId}
-                  autoPaymentReview={selected.autoPaymentReview}
+                  paymentProofUpload={selected.paymentProofUpload}
                   requiresPayment={selected.paymentMode === "PAID"}
                 />
               )}
@@ -247,19 +252,26 @@ export default async function AttendancePage({
                       </div>
                       {isAdmin && player.paymentProofId ? (
                         <div className="w-full rounded-lg border border-line bg-surface-2/50 p-2 text-[11px] text-muted">
-                          <p>
-                            E2E: <span className="font-medium text-ink">{player.paymentProofE2eId ?? "não identificado"}</span>
-                            {" · "}OCR: {player.paymentProofConfidence ?? 0}%
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/api/payment-proof/${player.attendanceId}`}
+                            alt={`Comprovante de ${player.name}`}
+                            className="max-h-44 w-full rounded-md border border-line object-contain"
+                          />
+                          <p className="mt-1">
+                            Comprovante de{" "}
+                            {player.paymentProofImageBytes
+                              ? `${Math.max(1, Math.round(player.paymentProofImageBytes / 1024))} KB`
+                              : "imagem indisponível"}
                           </p>
-                          <p>
-                            Recebedor: {player.paymentProofRecipientName ?? "não identificado"}
-                          </p>
-                          {player.paymentProofReviewReasons?.length ? (
-                            <p className="mt-0.5 font-semibold text-warning">
-                              Análise: {player.paymentProofReviewReasons.join(", ")}
+                          {player.paymentProofNote ? (
+                            <p className="mt-0.5 whitespace-pre-line text-ink/80">
+                              Comentário: {player.paymentProofNote}
                             </p>
                           ) : null}
                         </div>
+                      ) : isAdmin ? (
+                        <Badge tone="warning">Sem comprovante</Badge>
                       ) : null}
                       {isAdmin ? (
                         <div className="flex items-center gap-1.5">

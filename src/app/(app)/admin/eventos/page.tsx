@@ -124,10 +124,10 @@ function EventFields({
         </div>
       </div>
       <Switch
-        name="autoPaymentReview"
-        label="Ativar reconhecimento automático de pagamento via comprovante"
-        description="O jogador envia o print do Pix e o sistema tenta validar automaticamente. Se algo divergir, o admin analisa. Só se aplica a eventos pagos."
-        defaultChecked={event?.autoPaymentReview ?? false}
+        name="paymentProofUpload"
+        label="Permitir envio de comprovante pelo site"
+        description="O jogador envia uma imagem compactada e o admin confere antes de aprovar. Só se aplica a eventos pagos."
+        defaultChecked={event?.paymentProofUpload ?? false}
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -252,7 +252,7 @@ export default async function AdminEventsPage({
                                 : "Realizado"}
                           </Badge>
                           <EventPriceBadge paymentMode={event.paymentMode} priceCents={event.priceCents} />
-                          {event.autoPaymentReview ? <Badge tone="brand">OCR Pix</Badge> : null}
+                          {event.paymentProofUpload ? <Badge tone="brand">Comprovante</Badge> : null}
                           {event.pendingPaymentCount > 0 ? (
                             <Badge tone="warning">{event.pendingPaymentCount} aguardando Pix</Badge>
                           ) : null}

@@ -43,6 +43,11 @@ type AttendanceEmailEvent = {
   priceCents: number | null;
 };
 
+function reservationDeadline(startsAt: Date): Date {
+  const oneHourBefore = new Date(startsAt.getTime() - 60 * 60 * 1000);
+  return oneHourBefore.getTime() > Date.now() ? oneHourBefore : startsAt;
+}
+
 async function queueAttendanceStatusEmail(input: {
   kind: "confirmed" | "waitlist" | "payment_pending" | "payment_approved" | "payment_rejected";
   user: { name: string; email: string };
@@ -134,6 +139,7 @@ async function promoteNext(
   tx: Tx,
   eventId: string,
   requiresPayment: boolean,
+  eventStartsAt: Date,
 ): Promise<{ id: string; userId: string; name: string; email: string; requiresPayment: boolean } | null> {
   const [next] = await tx
     .select({
@@ -157,6 +163,7 @@ async function promoteNext(
       waitlistPosition: null,
       paymentApprovedAt: null,
       paymentApprovedById: null,
+      reservationExpiresAt: requiresPayment ? reservationDeadline(eventStartsAt) : null,
       updatedAt: new Date(),
     })
     .where(eq(attendances.id, next.id));
@@ -231,6 +238,7 @@ export async function confirmAttendanceAction(
               waitlistPosition: null,
               paymentApprovedAt: null,
               paymentApprovedById: null,
+              reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
               updatedAt: new Date(),
             })
             .where(eq(attendances.id, existing.id));
@@ -239,6 +247,7 @@ export async function confirmAttendanceAction(
             eventId: event.id,
             userId: user.id,
             status: requiresPayment ? "PENDING_PAYMENT" : "CONFIRMED",
+            reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
           });
         }
         return {
@@ -342,11 +351,11 @@ export async function cancelAttendanceAction(
 
       await tx
         .update(attendances)
-        .set({ status: "CANCELLED", waitlistPosition: null, updatedAt: new Date() })
+        .set({ status: "CANCELLED", waitlistPosition: null, reservationExpiresAt: null, updatedAt: new Date() })
         .where(eq(attendances.id, existing.id));
 
       if (existing.status === "CONFIRMED" || existing.status === "PENDING_PAYMENT") {
-        const promoted = await promoteNext(tx, event.id, event.paymentMode === "PAID");
+        const promoted = await promoteNext(tx, event.id, event.paymentMode === "PAID", event.startsAt);
         if (promoted) {
           return {
             message: `Presença cancelada. ${promoted.name} entrou no seu lugar.`,
@@ -446,6 +455,7 @@ export async function adminAddAttendanceAction(
               waitlistPosition: null,
               paymentApprovedAt: null,
               paymentApprovedById: null,
+              reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
               updatedAt: new Date(),
             })
             .where(eq(attendances.id, existing.id));
@@ -454,6 +464,7 @@ export async function adminAddAttendanceAction(
             eventId: event.id,
             userId: target.id,
             status: requiresPayment ? "PENDING_PAYMENT" : "CONFIRMED",
+            reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
           });
         }
         return {
@@ -550,11 +561,11 @@ export async function adminRemoveAttendanceAction(
         row.attendance.status === "CONFIRMED" || row.attendance.status === "PENDING_PAYMENT";
       await tx
         .update(attendances)
-        .set({ status: "CANCELLED", waitlistPosition: null, updatedAt: new Date() })
+        .set({ status: "CANCELLED", waitlistPosition: null, reservationExpiresAt: null, updatedAt: new Date() })
         .where(eq(attendances.id, row.attendance.id));
 
       if (wasReserved) {
-        const promoted = await promoteNext(tx, row.attendance.eventId, event.paymentMode === "PAID");
+        const promoted = await promoteNext(tx, row.attendance.eventId, event.paymentMode === "PAID", event.startsAt);
         return promoted
           ? {
               message: `Presença de ${row.name} removida. ${promoted.name} foi promovido da fila.`,
@@ -645,6 +656,7 @@ export async function adminPromoteAttendanceAction(
           waitlistPosition: null,
           paymentApprovedAt: null,
           paymentApprovedById: null,
+          reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
           updatedAt: new Date(),
         })
         .where(eq(attendances.id, row.attendance.id));
@@ -862,6 +874,7 @@ export async function adminApprovePaymentAction(
           status: "CONFIRMED",
           paymentApprovedAt: new Date(),
           paymentApprovedById: actor.id,
+          reservationExpiresAt: null,
           updatedAt: new Date(),
         })
         .where(eq(attendances.id, row.attendance.id));
@@ -872,6 +885,10 @@ export async function adminApprovePaymentAction(
           status: "APPROVED",
           reviewedAt: new Date(),
           reviewedById: actor.id,
+          imageData: null,
+          imageMime: null,
+          imageBytes: null,
+          imageDeletedAt: new Date(),
         })
         .where(eq(paymentProofs.attendanceId, row.attendance.id));
 
@@ -940,7 +957,7 @@ export async function adminRejectPaymentAction(
 
       await tx
         .update(attendances)
-        .set({ status: "CANCELLED", paymentApprovedAt: null, updatedAt: new Date() })
+        .set({ status: "CANCELLED", paymentApprovedAt: null, reservationExpiresAt: null, updatedAt: new Date() })
         .where(eq(attendances.id, row.attendance.id));
 
       await tx
@@ -949,10 +966,14 @@ export async function adminRejectPaymentAction(
           status: "REJECTED",
           reviewedAt: new Date(),
           reviewedById: actor.id,
+          imageData: null,
+          imageMime: null,
+          imageBytes: null,
+          imageDeletedAt: new Date(),
         })
         .where(eq(paymentProofs.attendanceId, row.attendance.id));
 
-      const promoted = await promoteNext(tx, event.id, event.paymentMode === "PAID");
+      const promoted = await promoteNext(tx, event.id, event.paymentMode === "PAID", event.startsAt);
       return {
         message: `Pagamento de ${row.name} rejeitado.`,
         user: { name: row.name, email: row.email },

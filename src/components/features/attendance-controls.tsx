@@ -12,7 +12,7 @@ export function AttendanceControls({
   isOrganizer,
   requiresPayment = false,
   attendanceId,
-  autoPaymentReview = false,
+  paymentProofUpload = false,
   size = "lg",
   block = true,
 }: {
@@ -24,7 +24,7 @@ export function AttendanceControls({
   isOrganizer?: boolean;
   requiresPayment?: boolean;
   attendanceId?: string | null;
-  autoPaymentReview?: boolean;
+  paymentProofUpload?: boolean;
   size?: "sm" | "md" | "lg";
   block?: boolean;
 }) {
@@ -55,7 +55,7 @@ export function AttendanceControls({
   if (status === "PENDING_PAYMENT") {
     return (
       <div className="space-y-2">
-        {autoPaymentReview && attendanceId ? (
+        {paymentProofUpload && attendanceId ? (
           <PaymentProofUpload attendanceId={attendanceId} />
         ) : null}
         <ActionButton
@@ -70,9 +70,9 @@ export function AttendanceControls({
           Cancelar solicitação
         </ActionButton>
         <p className="text-center text-xs text-warning">
-          {autoPaymentReview
-            ? "Vaga reservada. Envie o comprovante Pix ou aguarde a análise do administrador."
-            : "Vaga reservada. Aguardando o administrador conferir e aprovar o pagamento."}
+          {paymentProofUpload
+            ? "Vaga reservada. Envie o comprovante para o admin aprovar."
+            : "Vaga reservada. Aguardando aprovação do admin."}
         </p>
       </div>
     );

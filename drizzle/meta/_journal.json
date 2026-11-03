@@ -85,6 +85,13 @@
       "when": 1793656226761,
       "tag": "0011_slim_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793672759447,
+      "tag": "0012_nasty_hitman",
+      "breakpoints": true
     }
   ]
 }

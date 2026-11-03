@@ -1,22 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { attendances, events, paymentProofs, users } from "@/db/schema";
-import { createOcrProvider } from "@/lib/ocr/factory";
-import { parsePixReceipt } from "@/lib/ocr/parser";
-import { validatePixProof } from "@/lib/ocr/validate";
-import { paymentApprovedEmail } from "@/lib/email";
-import { queueEmail } from "@/lib/notify";
+import { attendances, events, paymentProofs } from "@/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSessionUser } from "@/lib/session";
-import { getSettings } from "@/lib/settings";
-import { formatDateLong, formatTime } from "@/lib/time";
-import { absoluteUrl } from "@/lib/utils";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
-
-const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 
 export async function POST(
   request: Request,
@@ -27,7 +15,7 @@ export async function POST(
     return Response.json({ error: "Não autorizado." }, { status: 401 });
   }
 
-  const limit = rateLimit(`payment-proof:${user.id}`, 10, 60 * 60 * 1000);
+  const limit = rateLimit(`payment-proof:${user.id}`, 20, 60 * 60 * 1000);
   if (!limit.allowed) {
     return Response.json(
       { error: "Muitos envios. Aguarde alguns minutos." },
@@ -38,14 +26,9 @@ export async function POST(
   const { attendanceId } = await params;
 
   const [row] = await db
-    .select({
-      attendance: attendances,
-      event: events,
-      userName: users.name,
-    })
+    .select({ attendance: attendances, event: events })
     .from(attendances)
     .innerJoin(events, eq(events.id, attendances.eventId))
-    .innerJoin(users, eq(users.id, attendances.userId))
     .where(eq(attendances.id, attendanceId))
     .limit(1);
 
@@ -60,16 +43,9 @@ export async function POST(
     );
   }
 
-  if (!row.event.autoPaymentReview) {
+  if (!row.event.paymentProofUpload) {
     return Response.json(
-      { error: "Este evento não aceita reconhecimento automático." },
-      { status: 400 },
-    );
-  }
-
-  if (!row.event.priceCents || row.event.priceCents <= 0) {
-    return Response.json(
-      { error: "O valor deste evento ainda não foi configurado." },
+      { error: "Este evento não aceita envio de comprovante pelo site." },
       { status: 400 },
     );
   }
@@ -81,161 +57,116 @@ export async function POST(
     );
   }
 
-  const [existingProof] = await db
-    .select({ id: paymentProofs.id })
+  const [existing] = await db
+    .select({ id: paymentProofs.id, status: paymentProofs.status })
     .from(paymentProofs)
     .where(eq(paymentProofs.attendanceId, attendanceId))
     .limit(1);
 
-  if (existingProof) {
+  if (existing && existing.status !== "NEEDS_REVIEW") {
     return Response.json(
-      { error: "Já existe um comprovante para esta vaga. Aguarde a análise do administrador." },
+      { error: "Este comprovante já foi analisado pelo administrador." },
       { status: 409 },
     );
   }
 
-  const form = await request.formData();
+  let form: FormData | null = null;
+  try {
+    form = await request.formData();
+  } catch {
+    return Response.json({ error: "Envio inválido." }, { status: 400 });
+  }
+
   const file = form.get("proof");
-
   if (!(file instanceof File) || file.size === 0) {
-    return Response.json({ error: "Envie o comprovante." }, { status: 400 });
+    return Response.json({ error: "Selecione a imagem do comprovante." }, { status: 400 });
   }
 
-  if (file.size > MAX_BYTES) {
-    return Response.json(
-      { error: "Comprovante muito grande. Envie até 10 MB." },
-      { status: 413 },
-    );
-  }
-
-  if (!ALLOWED.has(file.type)) {
-    return Response.json(
-      { error: "Formato inválido. Envie JPG, PNG, WebP ou AVIF." },
-      { status: 415 },
-    );
-  }
-
-  const settings = await getSettings();
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const note = String(form.get("note") ?? "").trim().slice(0, 500);
 
   try {
-    const ocr = createOcrProvider();
-    const ocrResult = await ocr.recognize({ buffer, mimeType: file.type });
-    const parsed = parsePixReceipt(ocrResult.text, settings.timezone);
-    const reasons = validatePixProof({
-      parsed,
-      confidence: ocrResult.confidence,
-      eventPriceCents: row.event.priceCents,
-      eventCreatedAt: row.event.createdAt,
-      expectedRecipient: settings.pixRecipientName,
-      timeZone: settings.timezone,
-    });
-
-    if (parsed.e2eId) {
-      const [duplicate] = await db
-        .select({ id: paymentProofs.id })
-        .from(paymentProofs)
-        .where(eq(paymentProofs.e2eId, parsed.e2eId))
-        .limit(1);
-
-      if (duplicate) {
-        return Response.json(
-          { error: "Este comprovante já foi utilizado." },
-          { status: 409 },
-        );
-      }
-    }
-
-    const autoApproved = reasons.length === 0;
+    const sharp = (await import("sharp")).default;
+    const image = await sharp(Buffer.from(await file.arrayBuffer()), {
+      limitInputPixels: 80_000_000,
+    })
+      .rotate()
+      .resize({
+        width: 1200,
+        height: 1600,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 70 })
+      .toBuffer();
 
     await db.transaction(async (tx) => {
-      await tx.insert(paymentProofs).values({
-        attendanceId,
-        e2eId: parsed.e2eId,
-        amountCents: parsed.amountCents,
-        paidAt: parsed.paidAt,
-        recipientName: parsed.recipientName,
-        confidence: ocrResult.confidence,
-        provider: ocrResult.provider,
-        status: autoApproved ? "APPROVED" : "NEEDS_REVIEW",
-        reviewReasons: reasons,
-        reviewedAt: autoApproved ? new Date() : null,
-      });
-
-      if (autoApproved) {
+      if (existing) {
         await tx
-          .update(attendances)
+          .update(paymentProofs)
           .set({
-            status: "CONFIRMED",
-            paymentApprovedAt: new Date(),
-            paymentApprovedById: null,
-            updatedAt: new Date(),
+            imageData: image,
+            imageMime: "image/webp",
+            imageBytes: image.length,
+            note: note || null,
+            status: "NEEDS_REVIEW",
+            reviewedAt: null,
+            reviewedById: null,
+            imageDeletedAt: null,
           })
-          .where(eq(attendances.id, attendanceId));
+          .where(eq(paymentProofs.id, existing.id));
+      } else {
+        await tx.insert(paymentProofs).values({
+          attendanceId,
+          imageData: image,
+          imageMime: "image/webp",
+          imageBytes: image.length,
+          note: note || null,
+          status: "NEEDS_REVIEW",
+        });
       }
     });
 
-    if (autoApproved) {
-      const startsAtLabel = `${formatDateLong(
-        row.event.startsAt,
-        settings.timezone,
-      )} às ${formatTime(row.event.startsAt, settings.timezone)}`;
-      queueEmail({
-        to: user.email,
-        ...paymentApprovedEmail({
-          name: user.name,
-          siteName: settings.siteName,
-          eventTitle: row.event.title,
-          startsAtLabel,
-          venueName: row.event.venueName,
-          link: absoluteUrl(
-            row.event.publicToken ? `/e/${row.event.publicToken}` : "/inicio",
-          ),
-        }),
-      });
-    }
-
     return Response.json({
       ok: true,
-      autoApproved,
-      needsReview: !autoApproved,
-      parsed: {
-        e2eId: parsed.e2eId,
-        amountCents: parsed.amountCents,
-        paidAt: parsed.paidAt,
-        recipientName: parsed.recipientName,
-      },
-      reviewReasons: reasons,
+      needsReview: true,
+      imageBytes: image.length,
     });
   } catch (error) {
-    if ((error as { code?: string }).code === "23505") {
-      return Response.json(
-        { error: "Este comprovante ou esta vaga já possui um envio registrado." },
-        { status: 409 },
-      );
-    }
-
     console.error("[payment-proof] falha ao processar comprovante", error);
-
-    try {
-      await db.insert(paymentProofs).values({
-        attendanceId,
-        status: "NEEDS_REVIEW",
-        reviewReasons: ["ocr_failed"],
-      });
-    } catch (insertError) {
-      console.error("[payment-proof] falha ao salvar análise manual", insertError);
-      return Response.json(
-        { error: "Não foi possível registrar o comprovante." },
-        { status: 500 },
-      );
-    }
-
-    return Response.json({
-      ok: true,
-      autoApproved: false,
-      needsReview: true,
-      reviewReasons: ["ocr_failed"],
-    });
+    return Response.json(
+      { error: "Não foi possível processar a imagem. Tente novamente." },
+      { status: 422 },
+    );
   }
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ attendanceId: string }> },
+) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") {
+    return Response.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
+  const { attendanceId } = await params;
+  const [proof] = await db
+    .select({
+      imageData: paymentProofs.imageData,
+      imageMime: paymentProofs.imageMime,
+    })
+    .from(paymentProofs)
+    .where(eq(paymentProofs.attendanceId, attendanceId))
+    .limit(1);
+
+  if (!proof?.imageData) {
+    return new Response("Sem comprovante.", { status: 404 });
+  }
+
+  return new Response(new Uint8Array(proof.imageData), {
+    headers: {
+      "Content-Type": proof.imageMime ?? "image/webp",
+      "Cache-Control": "private, no-store",
+    },
+  });
 }

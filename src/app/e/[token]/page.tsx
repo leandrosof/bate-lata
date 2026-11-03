@@ -171,7 +171,7 @@ export default async function PublicEventPage({
                     allowWaitlist={settings.allowWaitlist}
                     isOrganizer={Boolean(mine?.isOrganizer)}
                     attendanceId={mine?.attendanceId}
-                    autoPaymentReview={event.autoPaymentReview}
+                    paymentProofUpload={event.paymentProofUpload}
                     requiresPayment={event.paymentMode === "PAID"}
                     size="lg"
                     block={false}

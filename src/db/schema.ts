@@ -148,7 +148,7 @@ export const events = pgTable(
     maxPlayers: integer("max_players").notNull(),
     paymentMode: eventPaymentMode("payment_mode").notNull().default("FREE"),
     priceCents: integer("price_cents"),
-    autoPaymentReview: boolean("auto_payment_review").notNull().default(false),
+    paymentProofUpload: boolean("auto_payment_review").notNull().default(false),
     notes: text("notes"),
     status: eventStatus("status").notNull().default("SCHEDULED"),
     rotationRule: rotationRule("rotation_rule").notNull().default("HYBRID"),
@@ -191,6 +191,7 @@ export const attendances = pgTable(
       onDelete: "set null",
     }),
     paymentReference: text("payment_reference"),
+    reservationExpiresAt: timestamp("reservation_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -214,12 +215,17 @@ export const paymentProofs = pgTable(
     recipientName: text("recipient_name"),
     confidence: integer("confidence"),
     provider: text("provider").notNull().default("tesseract"),
-    status: paymentProofStatus("status").notNull().default("PROCESSING"),
     reviewReasons: jsonb("review_reasons").$type<string[]>(),
+    imageData: bytea("image_data"),
+    imageMime: text("image_mime"),
+    imageBytes: integer("image_bytes"),
+    note: text("note"),
+    status: paymentProofStatus("status").notNull().default("NEEDS_REVIEW"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewedById: uuid("reviewed_by_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    imageDeletedAt: timestamp("image_deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("payment_proofs_e2e_unique").on(table.e2eId)],
@@ -476,7 +482,7 @@ export const gamePlayersRelations = relations(gamePlayers, ({ one }) => ({
 export type User = typeof users.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type Attendance = typeof attendances.$inferSelect;
-export type PaymentProof = typeof paymentProofs.$inferSelect;
+export type PaymentReceipt = typeof paymentProofs.$inferSelect;
 export type Draw = typeof draws.$inferSelect;
 export type DrawTeam = typeof drawTeams.$inferSelect;
 export type Game = typeof games.$inferSelect;

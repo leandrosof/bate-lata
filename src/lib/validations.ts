@@ -94,7 +94,7 @@ export const eventSchema = z.object({
     .max(MAX_PLAYERS_LIMIT, `Máximo de ${MAX_PLAYERS_LIMIT} jogadores.`),
   paymentMode: z.enum(["FREE", "PAID"]).default("FREE"),
   price: z.coerce.number().min(0, "O valor não pode ser negativo.").max(10000, "Valor muito alto.").optional().default(0),
-  autoPaymentReview: formBoolean.optional().default(false),
+  paymentProofUpload: formBoolean.optional().default(false),
   notes: z.string().trim().max(1000, "Observações muito longas.").optional(),
   rotationRule: z
     .enum(["HYBRID", "WINNER_STAYS", "ROTATE_ALL", "ARRIVAL_QUEUE"])

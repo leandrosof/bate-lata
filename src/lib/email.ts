@@ -482,3 +482,33 @@ export function paymentRejectedEmail(input: {
   });
   return { subject, text, html };
 }
+
+export function preRegistrationExpiredEmail(input: {
+  name: string;
+  siteName: string;
+  eventTitle: string;
+  startsAtLabel: string;
+  link: string;
+}): EmailContent {
+  const subject = `Sua pré-inscrição expirou — ${input.eventTitle}`;
+  const text = [
+    `Olá, ${input.name}!`,
+    "",
+    `Sua vaga reservada para ${input.eventTitle} (${input.startsAtLabel}) foi liberada porque a aprovação não aconteceu até 1 hora antes do jogo.`,
+    "",
+    `Veja a agenda: ${input.link}`,
+  ].join("\n");
+  const html = emailLayout({
+    siteName: input.siteName,
+    heading: "Pré-inscrição expirada",
+    body: [
+      paragraph(`Olá, ${input.name}!`),
+      paragraph(
+        `Sua vaga reservada para ${input.eventTitle} (${input.startsAtLabel}) foi liberada porque a aprovação não aconteceu até 1 hora antes do jogo.`,
+      ),
+    ].join(""),
+    ctaLabel: "Ver agenda",
+    ctaUrl: input.link,
+  });
+  return { subject, text, html };
+}

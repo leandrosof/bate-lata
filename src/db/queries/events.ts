@@ -18,13 +18,10 @@ export type RosterPlayer = {
   isOrganizer: boolean;
   since: Date;
   paymentProofId: string | null;
-  paymentProofE2eId: string | null;
-  paymentProofAmountCents: number | null;
-  paymentProofPaidAt: Date | null;
-  paymentProofRecipientName: string | null;
-  paymentProofConfidence: number | null;
   paymentProofStatus: "PROCESSING" | "NEEDS_REVIEW" | "APPROVED" | "REJECTED" | null;
-  paymentProofReviewReasons: string[] | null;
+  paymentProofNote: string | null;
+  paymentProofImageBytes: number | null;
+  paymentProofImageDeletedAt: Date | null;
 };
 
 export type EventSummary = EventRow & {
@@ -228,13 +225,10 @@ export async function getEventRoster(eventId: string): Promise<{
       isOrganizer: attendances.isOrganizer,
       since: attendances.createdAt,
       paymentProofId: paymentProofs.id,
-      paymentProofE2eId: paymentProofs.e2eId,
-      paymentProofAmountCents: paymentProofs.amountCents,
-      paymentProofPaidAt: paymentProofs.paidAt,
-      paymentProofRecipientName: paymentProofs.recipientName,
-      paymentProofConfidence: paymentProofs.confidence,
       paymentProofStatus: paymentProofs.status,
-      paymentProofReviewReasons: paymentProofs.reviewReasons,
+      paymentProofNote: paymentProofs.note,
+      paymentProofImageBytes: paymentProofs.imageBytes,
+      paymentProofImageDeletedAt: paymentProofs.imageDeletedAt,
     })
     .from(attendances)
     .innerJoin(users, eq(users.id, attendances.userId))

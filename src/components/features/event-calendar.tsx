@@ -287,9 +287,9 @@ export function EventCalendar({
                     </div>
                   </div>
                   <Switch
-                    name="autoPaymentReview"
-                    label="Reconhecer pagamento pelo comprovante"
-                    description="Envie o print do Pix e o sistema tenta aprovar automaticamente. Só se aplica a eventos pagos."
+                    name="paymentProofUpload"
+                    label="Permitir envio de comprovante pelo site"
+                    description="O jogador envia uma imagem compactada e o admin confere antes de aprovar. Só se aplica a eventos pagos."
                   />
                   <div>
                     <Label htmlFor="cal-surface" required>

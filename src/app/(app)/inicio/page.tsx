@@ -69,6 +69,7 @@ export default async function HomePage() {
   const remaining = nextEvent ? Math.max(nextEvent.maxPlayers - reserved, 0) : 0;
   const capacityTone = isFull ? "success" : remaining <= 3 ? "warning" : "brand";
   const parts = nextEvent ? dayParts(nextEvent.startsAt, settings.timezone) : null;
+  const eventIsOpen = Boolean(nextEvent && nextEvent.status === "SCHEDULED");
 
   return (
     <div className="stagger space-y-5">
@@ -194,11 +195,13 @@ export default async function HomePage() {
                   <span className="text-muted">/{nextEvent.maxPlayers} confirmados</span>
                 </p>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  {isFull
-                    ? `${waitlist.length} na fila`
-                    : remaining === 1
-                      ? "1 vaga restante"
-                      : `${remaining} vagas restantes`}
+                  {!eventIsOpen
+                    ? "Inscrições encerradas"
+                    : isFull
+                      ? `${waitlist.length} na fila`
+                      : remaining === 1
+                        ? "1 vaga restante"
+                        : `${remaining} vagas restantes`}
                 </p>
               </div>
               <Progress
@@ -239,7 +242,36 @@ export default async function HomePage() {
             ) : null}
 
             <div className="space-y-2">
-              {user.role === "ADMIN" ? (
+              {!eventIsOpen ? (
+                <div className="rounded-xl border border-line bg-surface-2/60 p-3 text-center">
+                  <p className="text-sm font-semibold text-ink">
+                    {nextEvent.status === "CANCELLED"
+                      ? "Evento cancelado"
+                      : nextEvent.status === "FINISHED"
+                        ? "Evento realizado"
+                        : "Inscrições encerradas"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Não é mais possível confirmar presença.
+                  </p>
+                  <div className="mt-2 flex flex-wrap justify-center gap-2">
+                    <Link
+                      href={`/presencas?evento=${nextEvent.id}`}
+                      className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+                    >
+                      Ver lista
+                    </Link>
+                    {nextEvent.active ? (
+                      <Link
+                        href={`/racha?evento=${nextEvent.id}`}
+                        className={cn(buttonVariants({ size: "sm" }))}
+                      >
+                        Abrir racha
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              ) : user.role === "ADMIN" ? (
                 <OrganizerToggle
                   eventId={nextEvent.id}
                   attendanceId={mine?.attendanceId}
@@ -255,7 +287,7 @@ export default async function HomePage() {
                   allowWaitlist={settings.allowWaitlist}
                   isOrganizer={organizers.some((row) => row.userId === user.id)}
                   attendanceId={mine?.attendanceId}
-                  autoPaymentReview={nextEvent.autoPaymentReview}
+                  paymentProofUpload={nextEvent.paymentProofUpload}
                   requiresPayment={nextEvent.paymentMode === "PAID"}
                 />
               )}
@@ -351,10 +383,16 @@ export default async function HomePage() {
         />
         <StatCard
           label="Vagas livres"
-          value={nextEvent ? remaining : "—"}
-          hint={waitlist.length > 0 ? `${waitlist.length} na fila` : "Lista de espera vazia"}
+          value={nextEvent && eventIsOpen ? remaining : "—"}
+          hint={
+            !eventIsOpen
+              ? "Inscrições encerradas"
+              : waitlist.length > 0
+                ? `${waitlist.length} na fila`
+                : "Lista de espera vazia"
+          }
           icon={<CalendarDays className="h-4 w-4" />}
-          accent={nextEvent && remaining <= 3 ? "warning" : "success"}
+          accent={nextEvent && eventIsOpen && remaining <= 3 ? "warning" : "success"}
         />
         <StatCard
           label="Avisos"
