@@ -135,31 +135,41 @@ export function PaymentProofUpload({
 
   if (hasProof) {
     return (
-      <div className="space-y-2 rounded-xl border border-line bg-surface-2/60 p-2 text-left">
-        <p className="text-xs font-semibold text-ink">Comprovante enviado</p>
-        <PaymentProofPreview
-          attendanceId={attendanceId}
-          title="Seu comprovante Pix"
-          showThumbnail={false}
-          triggerLabel="Visualizar comprovante"
-        />
-        <p className="text-[11px] text-muted">
-          Aguardando análise do administrador. Você pode remover e enviar outro enquanto não
-          for analisado.
-        </p>
-        {note ? (
-          <p className="whitespace-pre-line text-[11px] text-ink/80">Comentário: {note}</p>
-        ) : null}
-        <Button
-          variant="danger"
-          size="sm"
-          block
-          onClick={() => void remove()}
-          disabled={removing}
-        >
-          {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-          {removing ? "Removendo..." : "Remover comprovante"}
-        </Button>
+      <div className="rounded-xl border border-line bg-surface-2/50 p-2.5 text-left">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+            <FileImage className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-ink">Comprovante enviado</p>
+            <p className="truncate text-[11px] text-muted" title={note ?? undefined}>
+              {note ? `Comentário: ${note}` : "Aguardando análise do administrador"}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <PaymentProofPreview
+              attendanceId={attendanceId}
+              title="Seu comprovante Pix"
+              showThumbnail={false}
+              triggerLabel="Visualizar comprovante"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void remove()}
+              disabled={removing}
+              aria-label="Remover comprovante"
+              className="text-danger hover:bg-danger/10 hover:text-danger"
+            >
+              {removing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              {removing ? "Removendo..." : "Remover"}
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

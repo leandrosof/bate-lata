@@ -84,8 +84,8 @@ export function PaymentProofPreview({
           </div>
         </>
       ) : (
-        <Button variant="secondary" block onClick={() => setOpen(true)}>
-          <Eye className="h-4 w-4" />
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+          <Eye className="h-3.5 w-3.5" />
           {triggerLabel}
         </Button>
       )}
