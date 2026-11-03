@@ -349,16 +349,22 @@ test("comprovante Pix é enviado e aprovado manualmente", async ({ page, browser
   </svg>`;
   const proof = await sharp(Buffer.from(svg)).png().toBuffer();
   await page.locator('textarea[name="note"]').fill("Pix feito pela Maria para mim e para o Jo?o");
-  const uploadResponse = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/payment-proof/") &&
-      response.request().method() === "POST",
-  );
   await page.locator('input[type="file"]').setInputFiles({
     name: "comprovante.png",
     mimeType: "image/png",
     buffer: proof,
   });
+  await expect(page.getByText("Selecionado: comprovante.png")).toBeVisible();
+  await page.getByRole("button", { name: "Enviar comprovante Pix" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText(
+    "não será possível adicionar ou editar o comentário",
+  );
+  const uploadResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/payment-proof/") &&
+      response.request().method() === "POST",
+  );
+  await page.getByRole("alertdialog").getByRole("button", { name: "Enviar comprovante" }).click();
   expect((await uploadResponse).ok()).toBeTruthy();
   await expect(page.getByAltText("Seu comprovante Pix")).toBeVisible();
   await expect(page.getByRole("button", { name: "Remover comprovante" })).toBeVisible();
@@ -369,16 +375,18 @@ test("comprovante Pix é enviado e aprovado manualmente", async ({ page, browser
   await expect(page.getByRole("button", { name: "Enviar comprovante Pix" })).toBeVisible();
 
   await page.locator('textarea[name="note"]').fill("Pix feito pela Maria para mim e para o Jo?o");
-  const reuploadResponse = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/payment-proof/") &&
-      response.request().method() === "POST",
-  );
   await page.locator('input[type="file"]').setInputFiles({
     name: "comprovante.png",
     mimeType: "image/png",
     buffer: proof,
   });
+  await page.getByRole("button", { name: "Enviar comprovante Pix" }).click();
+  const reuploadResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/payment-proof/") &&
+      response.request().method() === "POST",
+  );
+  await page.getByRole("alertdialog").getByRole("button", { name: "Enviar comprovante" }).click();
   expect((await reuploadResponse).ok()).toBeTruthy();
 
   await admin.goto(presencasHref!);
