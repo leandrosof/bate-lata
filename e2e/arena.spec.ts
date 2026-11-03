@@ -291,7 +291,7 @@ test("evento pago reserva vaga até o admin aprovar o Pix", async ({ page }) => 
     .locator("div.card")
     .filter({ has: page.getByRole("heading", { name: "Jogo Pago E2E", exact: true }) })
     .first();
-  const presencasHref = await eventCard.getByRole("link", { name: "Lista completa" }).getAttribute("href");
+  const presencasHref = await eventCard.getByRole("link", { name: "Lista", exact: true }).getAttribute("href");
   expect(presencasHref).toBeTruthy();
   await page.goto(presencasHref!);
 
@@ -330,7 +330,7 @@ test("comprovante Pix é enviado e aprovado manualmente", async ({ page, browser
     .locator("div.card")
     .filter({ has: admin.getByRole("heading", { name: "Jogo Comprovante E2E", exact: true }) })
     .first();
-  const presencasHref = await adminEventCard.getByRole("link", { name: "Lista completa" }).getAttribute("href");
+  const presencasHref = await adminEventCard.getByRole("link", { name: "Lista", exact: true }).getAttribute("href");
   expect(presencasHref).toBeTruthy();
 
   await login(page, "novato@arena.local", "Arena@2026");

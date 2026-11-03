@@ -77,13 +77,13 @@ export function AttendanceControls({
         >
           Cancelar solicitação
         </ActionButton>
-        <p className="text-center text-xs text-warning">
-          {paymentProofId
-            ? "Comprovante enviado. Aguardando aprovação do admin."
-            : paymentProofUpload
+        {paymentProofId ? null : (
+          <p className="text-center text-xs text-warning">
+            {paymentProofUpload
               ? "Vaga reservada. Envie o comprovante para o admin aprovar."
               : "Vaga reservada. Aguardando aprovação do admin."}
-        </p>
+          </p>
+        )}
       </div>
     );
   }

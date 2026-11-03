@@ -8,10 +8,12 @@ export function ShareEventButton({
   token,
   title,
   onDark,
+  compact = false,
 }: {
   token: string;
   title: string;
   onDark?: boolean;
+  compact?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -32,6 +34,33 @@ export function ShareEventButton({
   function whatsapp() {
     const text = encodeURIComponent(`${title} — confirme sua presença: ${url()}`);
     window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+  }
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant={onDark ? "white" : "ghost"}
+          size="icon-sm"
+          onClick={() => void copy()}
+          aria-label={copied ? "Link copiado" : "Copiar link"}
+          title={copied ? "Link copiado" : "Copiar link"}
+        >
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        </Button>
+        <Button
+          type="button"
+          variant={onDark ? "white" : "ghost"}
+          size="icon-sm"
+          onClick={whatsapp}
+          aria-label="Compartilhar no WhatsApp"
+          title="Compartilhar no WhatsApp"
+        >
+          <MessageCircle className="h-4 w-4" />
+        </Button>
+      </div>
+    );
   }
 
   return (

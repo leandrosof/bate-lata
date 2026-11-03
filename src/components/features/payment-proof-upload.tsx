@@ -141,7 +141,9 @@ export function PaymentProofUpload({
             <FileImage className="h-4 w-4" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-ink">Comprovante enviado</p>
+            <p className="text-xs font-semibold text-ink">
+              Comprovante enviado <span className="font-normal text-warning">· Em análise</span>
+            </p>
             <p className="truncate text-[11px] text-muted" title={note ?? undefined}>
               {note ? `Comentário: ${note}` : "Aguardando análise do administrador"}
             </p>
