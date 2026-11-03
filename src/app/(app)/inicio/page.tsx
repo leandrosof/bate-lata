@@ -288,6 +288,8 @@ export default async function HomePage() {
                   isOrganizer={organizers.some((row) => row.userId === user.id)}
                   attendanceId={mine?.attendanceId}
                   paymentProofUpload={nextEvent.paymentProofUpload}
+                  paymentProofId={mine?.paymentProofId ?? null}
+                  paymentProofNote={mine?.paymentProofNote ?? null}
                   requiresPayment={nextEvent.paymentMode === "PAID"}
                 />
               )}

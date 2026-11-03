@@ -145,7 +145,7 @@ export async function GET(
   { params }: { params: Promise<{ attendanceId: string }> },
 ) {
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") {
+  if (!user) {
     return Response.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -154,12 +154,14 @@ export async function GET(
     .select({
       imageData: paymentProofs.imageData,
       imageMime: paymentProofs.imageMime,
+      ownerId: attendances.userId,
     })
     .from(paymentProofs)
+    .innerJoin(attendances, eq(attendances.id, paymentProofs.attendanceId))
     .where(eq(paymentProofs.attendanceId, attendanceId))
     .limit(1);
 
-  if (!proof?.imageData) {
+  if (!proof?.imageData || (user.role !== "ADMIN" && proof.ownerId !== user.id)) {
     return new Response("Sem comprovante.", { status: 404 });
   }
 
@@ -169,4 +171,42 @@ export async function GET(
       "Cache-Control": "private, no-store",
     },
   });
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ attendanceId: string }> },
+) {
+  const user = await getSessionUser();
+  if (!user) {
+    return Response.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
+  const { attendanceId } = await params;
+  const [row] = await db
+    .select({
+      proofId: paymentProofs.id,
+      proofStatus: paymentProofs.status,
+      ownerId: attendances.userId,
+      attendanceStatus: attendances.status,
+    })
+    .from(paymentProofs)
+    .innerJoin(attendances, eq(attendances.id, paymentProofs.attendanceId))
+    .where(eq(paymentProofs.attendanceId, attendanceId))
+    .limit(1);
+
+  if (!row || row.ownerId !== user.id) {
+    return Response.json({ error: "Comprovante não encontrado." }, { status: 404 });
+  }
+
+  if (row.attendanceStatus !== "PENDING_PAYMENT" || row.proofStatus !== "NEEDS_REVIEW") {
+    return Response.json(
+      { error: "Este comprovante já foi analisado pelo administrador." },
+      { status: 409 },
+    );
+  }
+
+  await db.delete(paymentProofs).where(eq(paymentProofs.id, row.proofId));
+
+  return Response.json({ ok: true });
 }

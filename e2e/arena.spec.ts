@@ -360,6 +360,26 @@ test("comprovante Pix é enviado e aprovado manualmente", async ({ page, browser
     buffer: proof,
   });
   expect((await uploadResponse).ok()).toBeTruthy();
+  await expect(page.getByAltText("Seu comprovante Pix")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remover comprovante" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enviar comprovante Pix" })).toHaveCount(0);
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Remover comprovante" }).click();
+  await expect(page.getByRole("button", { name: "Enviar comprovante Pix" })).toBeVisible();
+
+  await page.locator('textarea[name="note"]').fill("Pix feito pela Maria para mim e para o Jo?o");
+  const reuploadResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/payment-proof/") &&
+      response.request().method() === "POST",
+  );
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "comprovante.png",
+    mimeType: "image/png",
+    buffer: proof,
+  });
+  expect((await reuploadResponse).ok()).toBeTruthy();
 
   await admin.goto(presencasHref!);
   await expect(admin.getByAltText("Comprovante de Novato E2E")).toBeVisible();

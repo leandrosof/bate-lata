@@ -213,6 +213,8 @@ export default async function AttendancePage({
                   isOrganizer={Boolean(mine?.isOrganizer)}
                   attendanceId={mine?.attendanceId}
                   paymentProofUpload={selected.paymentProofUpload}
+                  paymentProofId={mine?.paymentProofId ?? null}
+                  paymentProofNote={mine?.paymentProofNote ?? null}
                   requiresPayment={selected.paymentMode === "PAID"}
                 />
               )}
@@ -252,17 +254,35 @@ export default async function AttendancePage({
                       </div>
                       {isAdmin && player.paymentProofId ? (
                         <div className="w-full rounded-lg border border-line bg-surface-2/50 p-2 text-[11px] text-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={`/api/payment-proof/${player.attendanceId}`}
-                            alt={`Comprovante de ${player.name}`}
-                            className="max-h-44 w-full rounded-md border border-line object-contain"
-                          />
-                          <p className="mt-1">
-                            Comprovante de{" "}
-                            {player.paymentProofImageBytes
-                              ? `${Math.max(1, Math.round(player.paymentProofImageBytes / 1024))} KB`
-                              : "imagem indisponível"}
+                          <a
+                            href={`/api/payment-proof/${player.attendanceId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Abrir comprovante em tela maior"
+                            className="block cursor-zoom-in"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/payment-proof/${player.attendanceId}`}
+                              alt={`Comprovante de ${player.name}`}
+                              className="max-h-44 w-full rounded-md border border-line object-contain"
+                            />
+                          </a>
+                          <p className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                            <span>
+                              Comprovante de{" "}
+                              {player.paymentProofImageBytes
+                                ? `${Math.max(1, Math.round(player.paymentProofImageBytes / 1024))} KB`
+                                : "imagem indisponível"}
+                            </span>
+                            <a
+                              href={`/api/payment-proof/${player.attendanceId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-brand hover:underline"
+                            >
+                              Ver em tela maior
+                            </a>
                           </p>
                           {player.paymentProofNote ? (
                             <p className="mt-0.5 whitespace-pre-line text-ink/80">

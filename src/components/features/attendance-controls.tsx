@@ -13,6 +13,8 @@ export function AttendanceControls({
   requiresPayment = false,
   attendanceId,
   paymentProofUpload = false,
+  paymentProofId = null,
+  paymentProofNote = null,
   size = "lg",
   block = true,
 }: {
@@ -25,6 +27,8 @@ export function AttendanceControls({
   requiresPayment?: boolean;
   attendanceId?: string | null;
   paymentProofUpload?: boolean;
+  paymentProofId?: string | null;
+  paymentProofNote?: string | null;
   size?: "sm" | "md" | "lg";
   block?: boolean;
 }) {
@@ -55,8 +59,12 @@ export function AttendanceControls({
   if (status === "PENDING_PAYMENT") {
     return (
       <div className="space-y-2">
-        {paymentProofUpload && attendanceId ? (
-          <PaymentProofUpload attendanceId={attendanceId} />
+        {attendanceId && (paymentProofUpload || paymentProofId) ? (
+          <PaymentProofUpload
+            attendanceId={attendanceId}
+            hasProof={Boolean(paymentProofId)}
+            note={paymentProofNote}
+          />
         ) : null}
         <ActionButton
           action={cancelAttendanceAction}
@@ -70,9 +78,11 @@ export function AttendanceControls({
           Cancelar solicitação
         </ActionButton>
         <p className="text-center text-xs text-warning">
-          {paymentProofUpload
-            ? "Vaga reservada. Envie o comprovante para o admin aprovar."
-            : "Vaga reservada. Aguardando aprovação do admin."}
+          {paymentProofId
+            ? "Comprovante enviado. Aguardando aprovação do admin."
+            : paymentProofUpload
+              ? "Vaga reservada. Envie o comprovante para o admin aprovar."
+              : "Vaga reservada. Aguardando aprovação do admin."}
         </p>
       </div>
     );

@@ -208,6 +208,8 @@ export default async function UpcomingPage() {
                         isOrganizer={Boolean(mine?.isOrganizer)}
                         attendanceId={mine?.attendanceId}
                         paymentProofUpload={event.paymentProofUpload}
+                        paymentProofId={mine?.paymentProofId ?? null}
+                        paymentProofNote={mine?.paymentProofNote ?? null}
                         requiresPayment={event.paymentMode === "PAID"}
                         size="sm"
                         block={false}

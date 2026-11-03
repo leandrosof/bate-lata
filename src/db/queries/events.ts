@@ -304,8 +304,12 @@ export async function getAttendanceMap(userId: string) {
       status: attendances.status,
       waitlistPosition: attendances.waitlistPosition,
       isOrganizer: attendances.isOrganizer,
+      paymentProofId: paymentProofs.id,
+      paymentProofStatus: paymentProofs.status,
+      paymentProofNote: paymentProofs.note,
     })
     .from(attendances)
+    .leftJoin(paymentProofs, eq(paymentProofs.attendanceId, attendances.id))
     .where(eq(attendances.userId, userId));
 
   return new Map(rows.map((row) => [row.eventId, row]));

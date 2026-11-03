@@ -172,6 +172,8 @@ export default async function PublicEventPage({
                     isOrganizer={Boolean(mine?.isOrganizer)}
                     attendanceId={mine?.attendanceId}
                     paymentProofUpload={event.paymentProofUpload}
+                    paymentProofId={mine?.paymentProofId ?? null}
+                    paymentProofNote={mine?.paymentProofNote ?? null}
                     requiresPayment={event.paymentMode === "PAID"}
                     size="lg"
                     block={false}
