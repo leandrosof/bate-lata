@@ -77,6 +77,28 @@ export default async function AttendancePage({
   const isFull = Boolean(selected && roster && reservedCount >= selected.maxPlayers);
   const remaining = selected ? Math.max(selected.maxPlayers - reservedCount, 0) : 0;
   const eventIsOpen = Boolean(selected && selected.status === "SCHEDULED");
+  const pendingPaymentCount = roster?.pendingPayment.length ?? 0;
+  const pendingWithProofCount =
+    roster?.pendingPayment.filter((player) => player.paymentProofId).length ?? 0;
+  const pendingWithoutProofCount = pendingPaymentCount - pendingWithProofCount;
+  const pendingPaymentTitle =
+    pendingWithProofCount === 0
+      ? "Aguardando pagamento"
+      : pendingWithoutProofCount === 0
+        ? "Aguardando aprovação"
+        : "Aguardando pagamento ou aprovação";
+  const pendingPaymentBadge =
+    pendingWithProofCount === 0
+      ? "aguardando Pix"
+      : pendingWithoutProofCount === 0
+        ? "aguardando análise"
+        : "pendentes";
+  const pendingPaymentDescription =
+    pendingWithProofCount === 0
+      ? "A vaga fica reservada até o administrador aprovar ou rejeitar o Pix."
+      : pendingWithoutProofCount === 0
+        ? "O comprovante Pix foi enviado e a vaga continua reservada até a análise do administrador."
+        : "Há comprovantes Pix aguardando análise e pagamentos pendentes.";
 
   return (
     <div>
@@ -176,7 +198,9 @@ export default async function AttendancePage({
 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="success">{roster.confirmed.length} confirmados</Badge>
-                <Badge tone="warning">{roster.pendingPayment.length} aguardando Pix</Badge>
+                <Badge tone="warning">
+                  {pendingPaymentCount} {pendingPaymentBadge}
+                </Badge>
                 <Badge tone="warning">{roster.waitlist.length} na espera</Badge>
                 <Badge tone="neutral">{roster.pending.length} sem resposta</Badge>
                 <div className="ml-auto">
@@ -228,14 +252,12 @@ export default async function AttendancePage({
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning-soft text-warning">
                     <Wallet className="h-4 w-4" aria-hidden />
                   </span>
-                  <CardTitle>Aguardando pagamento</CardTitle>
+                  <CardTitle>{pendingPaymentTitle}</CardTitle>
                 </div>
                 <Badge tone="warning">{roster.pendingPayment.length}</Badge>
               </CardHeader>
               <CardBody className="space-y-2 pt-2">
-                <p className="text-xs text-muted">
-                  A vaga fica reservada até o administrador aprovar ou rejeitar o Pix.
-                </p>
+                <p className="text-xs text-muted">{pendingPaymentDescription}</p>
                 <ul className="divide-y divide-line/60">
                   {roster.pendingPayment.map((player) => (
                     <li key={player.attendanceId} className="flex flex-wrap items-center gap-2 py-2">
