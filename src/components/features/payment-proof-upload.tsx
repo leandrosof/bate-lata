@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileImage, Loader2, Trash2, Upload } from "lucide-react";
+import { createPortal } from "react-dom";
+import { FileImage, Loader2, Trash2, Upload, X } from "lucide-react";
 import { compressImageFile } from "@/lib/image-compression";
 import { PaymentProofPreview } from "@/components/features/payment-proof-preview";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
 
 export function PaymentProofUpload({
@@ -21,10 +22,35 @@ export function PaymentProofUpload({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const busyRef = useRef(false);
+  const titleId = useId();
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busyRef.current) setOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    const timer = window.setTimeout(() => noteRef.current?.focus(), 20);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      window.clearTimeout(timer);
+    };
+  }, [open]);
 
   async function upload(file: File) {
     setBusy(true);
@@ -60,6 +86,7 @@ export function PaymentProofUpload({
         message: "Comprovante enviado. Aguardando aprovação do administrador.",
       });
       setSelectedFile(null);
+      setOpen(false);
       router.refresh();
     } catch {
       toast({
@@ -113,7 +140,8 @@ export function PaymentProofUpload({
         <PaymentProofPreview
           attendanceId={attendanceId}
           title="Seu comprovante Pix"
-          imageClassName="max-h-52"
+          showThumbnail={false}
+          triggerLabel="Visualizar comprovante"
         />
         <p className="text-[11px] text-muted">
           Aguardando análise do administrador. Você pode remover e enviar outro enquanto não
@@ -122,83 +150,132 @@ export function PaymentProofUpload({
         {note ? (
           <p className="whitespace-pre-line text-[11px] text-ink/80">Comentário: {note}</p>
         ) : null}
-        <button
-          type="button"
+        <Button
+          variant="danger"
+          size="sm"
+          block
           onClick={() => void remove()}
           disabled={removing}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-danger transition hover:bg-danger/10 disabled:opacity-60"
         >
           {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
           {removing ? "Removendo..." : "Remover comprovante"}
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-2">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            setSelectedFile(file ?? null);
-          }}
-        />
-        <textarea
-          ref={noteRef}
-          name="note"
-          rows={2}
-          maxLength={500}
-          placeholder="Comentário opcional. Ex.: Pix feito pela Maria para mim e para o João."
-          className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs text-ink outline-none transition placeholder:text-muted/60 focus:border-brand/70 focus:ring-2 focus:ring-brand/20"
-        />
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs font-semibold text-ink transition hover:border-line-strong hover:bg-surface-3 disabled:opacity-60"
-        >
-          <FileImage className="h-4 w-4" />
-          {selectedFile ? "Trocar imagem" : "Selecionar imagem do comprovante"}
-        </button>
-        {selectedFile ? (
-          <p className="truncate text-center text-[10px] text-muted">
-            Selecionado: {selectedFile.name}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => {
-            if (selectedFile) setConfirmOpen(true);
-          }}
-          disabled={busy || !selectedFile}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-brand/35 bg-brand-soft px-3 py-2 text-sm font-semibold text-brand transition hover:bg-brand/15 disabled:opacity-60"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          {busy ? "Compactando e enviando..." : "Enviar comprovante Pix"}
-        </button>
-        <p className="text-center text-[10px] text-muted">
-          O comentário deve ser escrito antes do envio e não pode ser alterado depois.
-        </p>
-      </div>
+      <Button variant="outline" block onClick={() => setOpen(true)}>
+        <Upload className="h-4 w-4" />
+        Enviar comprovante Pix
+      </Button>
 
-      <ConfirmDialog
-        open={confirmOpen}
-        title="Enviar comprovante Pix?"
-        message="Confira o comentário acima. Depois do envio, não será possível adicionar ou editar o comentário; para mudar, remova o comprovante e envie outro."
-        confirmLabel="Enviar comprovante"
-        cancelLabel="Revisar comentário"
-        tone="warning"
-        onCancel={() => setConfirmOpen(false)}
-        onConfirm={() => {
-          setConfirmOpen(false);
-          if (selectedFile) void upload(selectedFile);
-        }}
-      />
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center sm:p-4"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (!busy && event.target === event.currentTarget) setOpen(false);
+              }}
+            >
+              <div
+                className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+                aria-hidden
+                onClick={() => {
+                  if (!busy) setOpen(false);
+                }}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="relative flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_60px_-24px_rgba(0,0,0,0.45)]"
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-line/70 p-4">
+                  <div className="min-w-0">
+                    <h2
+                      id={titleId}
+                      className="font-display text-lg font-semibold uppercase tracking-wide text-ink"
+                    >
+                      Enviar comprovante Pix
+                    </h2>
+                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                      Escreva o comentário antes de enviar. Depois do envio, não será possível
+                      adicionar ou editar o comentário.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    disabled={busy}
+                    aria-label="Fechar"
+                    className="rounded-lg p-1 text-muted transition hover:bg-ink/5 hover:text-ink disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+
+                <div className="space-y-3 p-4">
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      setSelectedFile(file ?? null);
+                    }}
+                  />
+                  <textarea
+                    ref={noteRef}
+                    name="note"
+                    rows={3}
+                    maxLength={500}
+                    placeholder="Comentário opcional. Ex.: Pix feito pela Maria para mim e para o João."
+                    className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs text-ink outline-none transition placeholder:text-muted/60 focus:border-brand/70 focus:ring-2 focus:ring-brand/20"
+                  />
+                  <Button
+                    variant="secondary"
+                    block
+                    onClick={() => inputRef.current?.click()}
+                    disabled={busy}
+                  >
+                    <FileImage className="h-4 w-4" />
+                    {selectedFile ? "Trocar imagem" : "Selecionar imagem do comprovante"}
+                  </Button>
+                  {selectedFile ? (
+                    <p className="truncate text-center text-[10px] text-muted">
+                      Selecionado: {selectedFile.name}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col-reverse gap-2 border-t border-line/70 bg-surface-2/30 p-3 sm:flex-row sm:justify-end">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setOpen(false)}
+                    disabled={busy}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      if (selectedFile) void upload(selectedFile);
+                    }}
+                    disabled={busy || !selectedFile}
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    {busy ? "Enviando..." : "Enviar comprovante"}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
