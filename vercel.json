@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["gru1"]
+  "regions": ["gru1"],
+  "functions": {
+    "src/app/api/payment-proof/**/*": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
 }

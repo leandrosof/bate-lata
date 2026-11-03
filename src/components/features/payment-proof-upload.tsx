@@ -15,10 +15,18 @@ export function PaymentProofUpload({ attendanceId }: { attendanceId: string }) {
 
     try {
       const optimized = await compressImageFile(file, {
-        maxWidth: 1800,
-        maxHeight: 1800,
-        targetBytes: 3 * 1024 * 1024,
+        maxWidth: 1400,
+        maxHeight: 1400,
+        targetBytes: 1.5 * 1024 * 1024,
       });
+
+      if (optimized.size > 4 * 1024 * 1024) {
+        toast({
+          tone: "error",
+          message: "Imagem muito grande. Envie um print ou uma foto menor.",
+        });
+        return;
+      }
 
       const body = new FormData();
       body.append("proof", optimized);
@@ -47,7 +55,11 @@ export function PaymentProofUpload({ attendanceId }: { attendanceId: string }) {
       });
       window.location.reload();
     } catch {
-      toast({ tone: "error", message: "Falha ao processar a imagem." });
+      toast({
+        tone: "error",
+        message:
+          "Falha ao processar a imagem. Use JPG, PNG ou WebP, ou envie um print da tela.",
+      });
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";

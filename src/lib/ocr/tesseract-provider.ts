@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -22,11 +23,17 @@ export class TesseractOcrProvider implements OcrProvider {
       path.join(os.tmpdir(), "bate-lata-tesseract");
     await mkdir(cachePath, { recursive: true });
 
+    const bundledLangPath = path.join(process.cwd(), "src/assets/tessdata");
+    const langPath =
+      process.env.TESSERACT_LANG_PATH?.trim() ||
+      (existsSync(path.join(bundledLangPath, "por.traineddata.gz"))
+        ? bundledLangPath
+        : undefined);
+
     const worker = await createWorker("por", 1, {
       cachePath,
-      ...(process.env.TESSERACT_LANG_PATH
-        ? { langPath: process.env.TESSERACT_LANG_PATH }
-        : {}),
+      cacheMethod: langPath ? "none" : "write",
+      ...(langPath ? { langPath } : {}),
     });
 
     try {
