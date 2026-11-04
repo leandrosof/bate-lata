@@ -13,7 +13,13 @@ import { Card, CardBody } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
-import { getAttendanceMap, listOperationalEvents } from "@/db/queries/events";
+import { LinkTabs } from "@/components/ui/tabs";
+import {
+  countEventsByStatus,
+  getAttendanceMap,
+  listEventsByStatus,
+  listOperationalEvents,
+} from "@/db/queries/events";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { countdownLabel, dayParts, formatDateTime, formatTime } from "@/lib/time";
@@ -21,10 +27,33 @@ import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Próximos jogos" };
 
-export default async function UpcomingPage() {
+const FILTERS = ["proximos", "passados", "cancelados"] as const;
+type Filter = (typeof FILTERS)[number];
+
+export default async function UpcomingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireUser();
   const settings = await getSettings();
-  const events = await listOperationalEvents();
+  const params = await searchParams;
+  const rawFilter = typeof params.filtro === "string" ? params.filtro : "";
+  const filter: Filter = FILTERS.includes(rawFilter as Filter)
+    ? (rawFilter as Filter)
+    : "proximos";
+
+  const [operationalEvents, statusCounts] = await Promise.all([
+    listOperationalEvents(),
+    countEventsByStatus(),
+  ]);
+  const operational = operationalEvents.filter((event) => event.status === "SCHEDULED");
+  const events =
+    filter === "passados"
+      ? await listEventsByStatus("FINISHED")
+      : filter === "cancelados"
+        ? await listEventsByStatus("CANCELLED")
+        : operational;
   const attendanceMap = await getAttendanceMap(user.id);
   const calendarEvents = events.map((event) => ({
     id: event.id,
@@ -63,6 +92,30 @@ export default async function UpcomingPage() {
         }
       />
 
+      <LinkTabs
+        className="mb-4"
+        items={[
+          {
+            href: "/jogos",
+            label: "Próximos e ativos",
+            active: filter === "proximos",
+            count: operational.length,
+          },
+          {
+            href: "/jogos?filtro=passados",
+            label: "Passados",
+            active: filter === "passados",
+            count: statusCounts.finished,
+          },
+          {
+            href: "/jogos?filtro=cancelados",
+            label: "Cancelados",
+            active: filter === "cancelados",
+            count: statusCounts.cancelled,
+          },
+        ]}
+      />
+
       <div className="mb-4">
         <EventCalendar events={calendarEvents} isAdmin={user.role === "ADMIN"} />
       </div>
@@ -70,10 +123,22 @@ export default async function UpcomingPage() {
       {events.length === 0 ? (
         <EmptyState
           icon={<CalendarDays className="h-5 w-5" />}
-          title="Nenhum jogo agendado"
-          description="Quando um novo encontro for criado, ele aparece aqui com todas as informações."
+          title={
+            filter === "passados"
+              ? "Nenhum jogo passado"
+              : filter === "cancelados"
+                ? "Nenhum jogo cancelado"
+                : "Nenhum jogo agendado"
+          }
+          description={
+            filter === "passados"
+              ? "Encontros marcados como realizados aparecem aqui."
+              : filter === "cancelados"
+                ? "Encontros cancelados ficam registrados aqui."
+                : "Quando um novo encontro for criado, ele aparece aqui com todas as informações."
+          }
           action={
-            user.role === "ADMIN" ? (
+            filter === "proximos" && user.role === "ADMIN" ? (
               <Link href="/admin/eventos" className={cn(buttonVariants({ size: "md" }))}>
                 Criar evento
               </Link>
@@ -89,6 +154,7 @@ export default async function UpcomingPage() {
             const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
             const isFull = remaining === 0;
             const eventIsOpen = event.status === "SCHEDULED";
+            const isActive = "active" in event && event.active;
 
             return (
               <Card key={event.id}>
@@ -127,38 +193,54 @@ export default async function UpcomingPage() {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      <Badge
-                        tone={
-                          organizing
-                            ? "brand"
-                            : mine?.status === "CONFIRMED"
-                              ? "success"
-                              : mine?.status === "PENDING_PAYMENT"
-                                ? "warning"
-                                : mine?.status === "WAITLIST"
-                                  ? "warning"
-                                  : "neutral"
-                        }
-                      >
-                        {organizing
-                          ? "Organizando"
-                          : mine?.status === "CONFIRMED"
-                            ? "Você vai"
-                            : mine?.status === "PENDING_PAYMENT"
-                              ? mine.paymentProofId
-                                ? "Em análise"
-                                : "Aguardando Pix"
-                              : mine?.status === "WAITLIST"
-                                ? `${mine.waitlistPosition}º na fila`
-                                : "Não confirmou"}
-                      </Badge>
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
-                        {event.status === "SCHEDULED"
-                          ? countdownLabel(event.startsAt, settings.timezone)
-                          : event.status === "FINISHED"
-                            ? "Realizado"
-                            : "Cancelado"}
-                      </span>
+                      {event.status === "SCHEDULED" ? (
+                        <>
+                          <Badge
+                            tone={
+                              organizing
+                                ? "brand"
+                                : mine?.status === "CONFIRMED"
+                                  ? "success"
+                                  : mine?.status === "PENDING_PAYMENT"
+                                    ? "warning"
+                                    : mine?.status === "WAITLIST"
+                                      ? "warning"
+                                      : "neutral"
+                            }
+                          >
+                            {organizing
+                              ? "Organizando"
+                              : mine?.status === "CONFIRMED"
+                                ? "Você vai"
+                                : mine?.status === "PENDING_PAYMENT"
+                                  ? mine.paymentProofId
+                                    ? "Em análise"
+                                    : "Aguardando Pix"
+                                  : mine?.status === "WAITLIST"
+                                    ? `${mine.waitlistPosition}º na fila`
+                                    : "Não confirmou"}
+                          </Badge>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+                            {countdownLabel(event.startsAt, settings.timezone)}
+                          </span>
+                        </>
+                      ) : (
+                        <Badge
+                          tone={
+                            isActive
+                              ? "brand"
+                              : event.status === "CANCELLED"
+                                ? "danger"
+                                : "neutral"
+                          }
+                        >
+                          {isActive
+                            ? "Em andamento"
+                            : event.status === "CANCELLED"
+                              ? "Cancelado"
+                              : "Realizado"}
+                        </Badge>
+                      )}
                     </div>
                   </div>
 

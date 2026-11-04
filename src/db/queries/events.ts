@@ -105,6 +105,37 @@ export async function listUpcomingEvents(reference = new Date()): Promise<EventS
   return attachCounts(rows);
 }
 
+export async function listEventsByStatus(
+  status: EventRow["status"],
+  limit = 80,
+): Promise<EventSummary[]> {
+  const rows = await db
+    .select()
+    .from(events)
+    .where(eq(events.status, status))
+    .orderBy(desc(events.startsAt))
+    .limit(limit);
+  return attachCounts(rows);
+}
+
+export async function countEventsByStatus(): Promise<{
+  scheduled: number;
+  finished: number;
+  cancelled: number;
+}> {
+  const rows = await db
+    .select({ status: events.status, total: count() })
+    .from(events)
+    .groupBy(events.status);
+  const totalFor = (status: EventRow["status"]) =>
+    Number(rows.find((row) => row.status === status)?.total ?? 0);
+  return {
+    scheduled: totalFor("SCHEDULED"),
+    finished: totalFor("FINISHED"),
+    cancelled: totalFor("CANCELLED"),
+  };
+}
+
 export async function listFinishedPublicEvents(limit = 80): Promise<EventSummary[]> {
   const rows = await db
     .select()
