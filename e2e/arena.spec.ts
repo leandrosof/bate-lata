@@ -33,48 +33,14 @@ async function confirmAction(page: Page) {
   await expect(dialog).toBeHidden();
 }
 
-async function waitForOutboxLink(page: Page, email: string, pathSegment: string) {
-  const outbox = path.join(process.cwd(), ".data", "e2e", "outbox");
-  const pattern = new RegExp(`https?://[^\\s"<]+/${pathSegment}/[A-Za-z0-9_-]+`);
-  let link: string | null = null;
-
-  for (let attempt = 0; attempt < 60 && !link; attempt += 1) {
-    if (fs.existsSync(outbox)) {
-      const files = fs
-        .readdirSync(outbox)
-        .filter((file) => file.endsWith(".txt"))
-        .sort()
-        .reverse();
-      for (const file of files) {
-        const content = fs.readFileSync(path.join(outbox, file), "utf8");
-        if (!content.includes(email)) continue;
-        const match = content.match(pattern);
-        if (match) {
-          link = match[0];
-          break;
-        }
-      }
-    }
-    if (!link) await page.waitForTimeout(250);
-  }
-
-  expect(link, `link ${pathSegment} não encontrado no outbox para ${email}`).not.toBeNull();
-  return link!;
-}
-
-async function registerAndVerify(page: Page, email: string, password: string, name: string) {
+async function registerPlayer(page: Page, email: string, password: string, name: string) {
   await page.goto("/cadastro");
   await page.fill('input[name="name"]', name);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', password);
   await page.fill('input[name="confirmPassword"]', password);
   await page.getByRole("button", { name: "Criar minha conta" }).click();
-  await expect(page).toHaveURL(/\/verificar-email/, { timeout: 20_000 });
-
-  const link = await waitForOutboxLink(page, email, "verificar-email");
-  await page.goto(link);
-  await page.getByRole("button", { name: "Confirmar meu e-mail" }).click();
-  await expect(page).toHaveURL(/\/entrar\?verificado=1/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/inicio$/, { timeout: 20_000 });
 }
 
 test("administrador entra e navega por todas as áreas", async ({ page }) => {
@@ -241,8 +207,7 @@ test("administrador cria evento e publica aviso", async ({ page }) => {
 });
 
 test("novo jogador se cadastra, confirma presença e não acessa administração", async ({ page }) => {
-  await registerAndVerify(page, "novato@arena.local", "Arena@2026", "Novato E2E");
-  await login(page, "novato@arena.local", "Arena@2026");
+  await registerPlayer(page, "novato@arena.local", "Arena@2026", "Novato E2E");
   await expect(page.getByRole("heading", { name: /Novato/ })).toBeVisible();
 
   await expect(page.getByRole("link", { name: "Administração" })).toHaveCount(0);
@@ -538,8 +503,7 @@ test("jogador exclui a própria conta e perde o acesso", async ({ page }) => {
   const email = `excluir-${Date.now()}@arena.local`;
   const password = "Excluir@2026";
 
-  await registerAndVerify(page, email, password, "Jogador Excluir");
-  await login(page, email, password);
+  await registerPlayer(page, email, password, "Jogador Excluir");
 
   await page.goto("/perfil");
   await page.getByRole("button", { name: "Excluir minha conta" }).click();

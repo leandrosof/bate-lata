@@ -53,9 +53,7 @@ export async function registerAction(_state: ActionState, formData: FormData): P
     return fail("Muitas tentativas de cadastro. Aguarde alguns minutos.");
   }
 
-  let verificationToken = "";
-  let verificationEmail = "";
-  let verificationName = "";
+  let userId = "";
   try {
     if (data.password !== data.confirmPassword) {
       throw new AppError("As senhas não conferem.");
@@ -72,8 +70,6 @@ export async function registerAction(_state: ActionState, formData: FormData): P
 
     const passwordHash = await hashPassword(data.password);
     const pinnedAdmin = normalizeEmail(process.env.ADMIN_EMAIL ?? "");
-    const token = randomBytes(32).toString("base64url");
-    const tokenHash = createHash("sha256").update(token).digest("hex");
 
     await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(690117)`);
@@ -87,43 +83,21 @@ export async function registerAction(_state: ActionState, formData: FormData): P
           email,
           passwordHash,
           role,
-          active: false,
+          active: true,
+          emailVerifiedAt: new Date(),
         })
         .returning({ id: users.id });
 
-      await tx.insert(emailVerificationTokens).values({
-        tokenHash,
-        userId: inserted.id,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        requestedIp: ip,
-      });
+      userId = inserted.id;
     });
 
-    verificationToken = token;
-    verificationEmail = email;
-    verificationName = data.name.trim();
     await ensureBaseData();
   } catch (error) {
     return actionFailure(error);
   }
 
-  try {
-    const settings = await getSettings();
-    const link = absoluteUrl(`/verificar-email/${verificationToken}`);
-    queueEmail({
-      to: verificationEmail,
-      ...welcomeVerificationEmail({
-        name: verificationName,
-        siteName: settings.siteName,
-        link,
-        expiresHours: 24,
-      }),
-    });
-  } catch (error) {
-    console.error("[email] falha ao preparar verificação de cadastro", error);
-  }
-
-  redirect(`/verificar-email?email=${encodeURIComponent(verificationEmail)}`);
+  await createSession(userId);
+  redirect("/inicio");
 }
 
 export async function loginAction(_state: ActionState, formData: FormData): Promise<ActionState> {
@@ -150,10 +124,6 @@ export async function loginAction(_state: ActionState, formData: FormData): Prom
   const valid = await verifyPassword(parsed.data.password, user.passwordHash);
   if (!valid) {
     return fail("E-mail ou senha inválidos.");
-  }
-
-  if (!user.emailVerifiedAt) {
-    return fail("Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.");
   }
 
   if (!user.active) {

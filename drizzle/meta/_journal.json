@@ -92,6 +92,13 @@
       "when": 1793672759447,
       "tag": "0012_nasty_hitman",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794248706020,
+      "tag": "0013_activate_pending_accounts",
+      "breakpoints": true
     }
   ]
 }

@@ -54,13 +54,6 @@ export default async function LoginPage({
         <LoginForm next={next} />
       </div>
 
-      <p className="mt-3 text-center text-xs text-muted">
-        Não recebeu a confirmação?{" "}
-        <Link href="/verificar-email" className="font-semibold text-brand hover:text-ink">
-          Reenviar e-mail
-        </Link>
-      </p>
-
       <div className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
         Ainda não tem conta?{" "}
         <Link href={`/cadastro${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-brand hover:text-ink">

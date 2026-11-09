@@ -24,7 +24,7 @@ export default async function RegisterPage({
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-muted">
         Cada jogador tem a própria conta para confirmar presença e acompanhar suas estatísticas. Depois
-        do cadastro, confirme seu e-mail para ativar o acesso.
+        do cadastro, você já entra direto para confirmar presença.
       </p>
 
       <div className="mt-5">

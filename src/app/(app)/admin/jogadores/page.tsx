@@ -87,13 +87,9 @@ export default async function AdminPlayersPage({
                       <Badge tone={player.role === "ADMIN" ? "brand" : "neutral"}>
                         {player.role === "ADMIN" ? "Admin" : "Jogador"}
                       </Badge>
-                      {player.emailVerifiedAt ? (
-                        <Badge tone={player.active ? "success" : "danger"}>
-                          {player.active ? "Ativo" : "Inativo"}
-                        </Badge>
-                      ) : (
-                        <Badge tone="warning">E-mail pendente</Badge>
-                      )}
+                      <Badge tone={player.active ? "success" : "danger"}>
+                        {player.active ? "Ativo" : "Inativo"}
+                      </Badge>
                     </div>
                   </div>
 
