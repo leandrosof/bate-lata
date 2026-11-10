@@ -116,7 +116,7 @@ test("administrador gerencia a fila e promove jogador automaticamente", async ({
   await confirmed
     .locator("li")
     .filter({ hasText: "Larissa Melo" })
-    .getByTitle("Remover presença")
+    .getByTitle("Remover da lista")
     .click();
   await confirmAction(page);
 
@@ -317,7 +317,7 @@ test("evento pago reserva vaga até o admin aprovar o Pix", async ({ page }) => 
   expect(presencasHref).toBeTruthy();
   await page.goto(presencasHref!);
 
-  await page.getByTestId("pending-card").getByRole("button", { name: "Confirmar" }).first().click();
+  await page.getByTestId("pending-card").getByRole("button", { name: "Adicionar à lista" }).first().click();
   await expect(page.getByTestId("pending-payment-card")).toBeVisible();
   await page.getByTestId("pending-payment-card").getByRole("button", { name: "Aprovar" }).first().click();
   await confirmAction(page);

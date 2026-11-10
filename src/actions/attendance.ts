@@ -24,10 +24,12 @@ import { queueEmail } from "@/lib/notify";
 import { formatCents } from "@/lib/money";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
+import { MAX_PLAYERS_LIMIT } from "@/lib/teams";
 import { formatDateLong, formatTime } from "@/lib/time";
 import { absoluteUrl } from "@/lib/utils";
 import {
   attendanceIdSchema,
+  eventCapacitySchema,
   eventIdSchema,
   eventUserSchema,
   waitlistMoveSchema,
@@ -446,58 +448,47 @@ export async function adminAddAttendanceAction(
         );
       const reservedTotal = Number(reservedRow?.total ?? 0);
 
-      if (reservedTotal < event.maxPlayers) {
-        if (existing) {
-          await tx
-            .update(attendances)
-            .set({
-              status: requiresPayment ? "PENDING_PAYMENT" : "CONFIRMED",
-              waitlistPosition: null,
-              paymentApprovedAt: null,
-              paymentApprovedById: null,
-              reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
-              updatedAt: new Date(),
-            })
-            .where(eq(attendances.id, existing.id));
-        } else {
-          await tx.insert(attendances).values({
-            eventId: event.id,
-            userId: target.id,
-            status: requiresPayment ? "PENDING_PAYMENT" : "CONFIRMED",
-            reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
-          });
+      let capacityNote = "";
+      if (reservedTotal >= event.maxPlayers) {
+        const nextMax = event.maxPlayers + 1;
+        if (nextMax > MAX_PLAYERS_LIMIT) {
+          throw new AppError("Limite máximo de vagas atingido.");
         }
-        return {
-          message: requiresPayment
-            ? `${target.name} reservou vaga e aguarda pagamento.`
-            : `${target.name} confirmado no evento.`,
-          email: { kind: requiresPayment ? ("payment_pending" as const) : ("confirmed" as const) },
-          target,
-        };
+        await tx
+          .update(events)
+          .set({ maxPlayers: nextMax, updatedAt: new Date() })
+          .where(eq(events.id, event.id));
+        capacityNote = ` Limite aumentado para ${nextMax} vagas.`;
       }
-
-      const [maxRow] = await tx
-        .select({ position: sql<number>`max(${attendances.waitlistPosition})` })
-        .from(attendances)
-        .where(and(eq(attendances.eventId, event.id), eq(attendances.status, "WAITLIST")));
-      const nextPosition = Number(maxRow?.position ?? 0) + 1;
 
       if (existing) {
         await tx
           .update(attendances)
-          .set({ status: "WAITLIST", waitlistPosition: nextPosition, updatedAt: new Date() })
+          .set({
+            status: requiresPayment ? "PENDING_PAYMENT" : "CONFIRMED",
+            waitlistPosition: null,
+            paymentApprovedAt: null,
+            paymentApprovedById: null,
+            reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
+            updatedAt: new Date(),
+          })
           .where(eq(attendances.id, existing.id));
       } else {
         await tx.insert(attendances).values({
           eventId: event.id,
           userId: target.id,
-          status: "WAITLIST",
-          waitlistPosition: nextPosition,
+          status: requiresPayment ? "PENDING_PAYMENT" : "CONFIRMED",
+          reservationExpiresAt: requiresPayment ? reservationDeadline(event.startsAt) : null,
         });
       }
+
       return {
-        message: `Vagas esgotadas. ${target.name} entrou na fila de espera (${nextPosition}º).`,
-        email: { kind: "waitlist" as const, position: nextPosition },
+        message: `${
+          requiresPayment
+            ? `${target.name} reservou vaga e aguarda pagamento.`
+            : `${target.name} confirmado no evento.`
+        }${capacityNote}`,
+        email: { kind: requiresPayment ? ("payment_pending" as const) : ("confirmed" as const) },
         target,
       };
     });
@@ -508,7 +499,6 @@ export async function adminAddAttendanceAction(
         user: { name: result.target.name, email: result.target.email },
         event: eventForEmail,
         priceCents: (eventForEmail as AttendanceEmailEvent).priceCents,
-        position: "position" in result.email ? result.email.position : undefined,
       });
     }
 
@@ -644,8 +634,17 @@ export async function adminPromoteAttendanceAction(
           ),
         );
 
+      let capacityNote = "";
       if (Number(reservedRow?.total ?? 0) >= event.maxPlayers) {
-        throw new AppError("Não há vagas. Aumente o limite ou cancele alguém primeiro.");
+        const nextMax = event.maxPlayers + 1;
+        if (nextMax > MAX_PLAYERS_LIMIT) {
+          throw new AppError("Limite máximo de vagas atingido.");
+        }
+        await tx
+          .update(events)
+          .set({ maxPlayers: nextMax, updatedAt: new Date() })
+          .where(eq(events.id, event.id));
+        capacityNote = ` Limite aumentado para ${nextMax} vagas.`;
       }
 
       const requiresPayment = event.paymentMode === "PAID";
@@ -662,9 +661,11 @@ export async function adminPromoteAttendanceAction(
         .where(eq(attendances.id, row.attendance.id));
       await renumberWaitlist(tx, event.id);
       return {
-        message: requiresPayment
-          ? `${row.name} reservou vaga e aguarda pagamento.`
-          : `${row.name} agora está confirmado.`,
+        message: `${
+          requiresPayment
+            ? `${row.name} reservou vaga e aguarda pagamento.`
+            : `${row.name} agora está confirmado.`
+        }${capacityNote}`,
         user: { name: row.name, email: row.email },
         requiresPayment,
       };
@@ -681,6 +682,54 @@ export async function adminPromoteAttendanceAction(
 
     revalidatePath("/", "layout");
     return success(result.message);
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function adminIncreaseEventCapacityAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = eventCapacitySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    const message = await db.transaction(async (tx) => {
+      const [event] = await tx
+        .select()
+        .from(events)
+        .where(eq(events.id, parsed.data.eventId))
+        .for("update")
+        .limit(1);
+      if (!event) throw new AppError("Evento não encontrado.");
+
+      const nextMax = Math.min(event.maxPlayers + parsed.data.seats, MAX_PLAYERS_LIMIT);
+      if (nextMax <= event.maxPlayers) {
+        throw new AppError("Limite máximo de vagas atingido.");
+      }
+
+      await tx
+        .update(events)
+        .set({ maxPlayers: nextMax, updatedAt: new Date() })
+        .where(eq(events.id, event.id));
+
+      return `Vagas atualizadas: ${event.maxPlayers} → ${nextMax}.`;
+    });
+
+    await recordAudit({
+      actorId: actor.id,
+      action: "event.capacity",
+      entity: "event",
+      entityId: parsed.data.eventId,
+      details: { seats: parsed.data.seats },
+    });
+
+    revalidatePath("/", "layout");
+    return success(message);
   } catch (error) {
     return actionFailure(error);
   }

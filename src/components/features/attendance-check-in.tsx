@@ -19,6 +19,7 @@ type AttendanceCheckInProps = {
   size?: "sm" | "md" | "lg";
   block?: boolean;
   compact?: boolean;
+  compactLabel?: string;
   showNotice?: boolean;
   className?: string;
 };
@@ -36,6 +37,7 @@ export function AttendanceCheckIn({
   size = "sm",
   block = false,
   compact = false,
+  compactLabel,
   showNotice = true,
   className,
 }: AttendanceCheckInProps) {
@@ -53,11 +55,13 @@ export function AttendanceCheckIn({
             action={undoCheckInAttendanceAction}
             fields={{ attendanceId }}
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             title="Desfazer chegada"
             icon={<Undo2 className="h-3.5 w-3.5" aria-hidden />}
             confirmMessage="Desfazer chegada? Use somente se a marcação foi feita por engano."
-          />
+          >
+            Desfazer chegada
+          </ActionButton>
         ) : null}
       </div>
     );
@@ -96,14 +100,14 @@ export function AttendanceCheckIn({
         action={checkInAttendanceAction}
         fields={{ attendanceId }}
         variant="success"
-        size={compact ? "icon-sm" : size}
+        size={compact ? (compactLabel ? "sm" : "icon-sm") : size}
         block={block}
         icon={<LogIn className="h-3.5 w-3.5" aria-hidden />}
         title="Marcar chegada (somente no local)"
         confirmTitle="Confirmar chegada"
         confirmMessage={confirmMessage}
       >
-        {compact ? undefined : "Cheguei"}
+        {compact ? compactLabel : "Cheguei"}
       </ActionButton>
     </div>
   );

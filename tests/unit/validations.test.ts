@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   drawSchema,
+  eventCapacitySchema,
   eventSchema,
+  rachaTeamSizeSchema,
   registerSchema,
   scoreSetSchema,
   settingsSchema,
@@ -80,6 +82,14 @@ describe("regras de sorteio e placar", () => {
     const gameId = "0a5d3d3e-3e4b-4d61-9d6f-1f4b8b8f8f8f";
     expect(scoreSetSchema.safeParse({ gameId, scoreA: "25", scoreB: "20" }).success).toBe(true);
     expect(scoreSetSchema.safeParse({ gameId, scoreA: "-1", scoreB: "20" }).success).toBe(false);
+  });
+
+  it("valida mudança de jogadores por time e vagas extras", () => {
+    const id = "0a5d3d3e-3e4b-4d61-9d6f-1f4b8b8f8f8f";
+    expect(rachaTeamSizeSchema.safeParse({ drawId: id, teamSize: "5" }).success).toBe(true);
+    expect(rachaTeamSizeSchema.safeParse({ drawId: id, teamSize: "7" }).success).toBe(false);
+    expect(eventCapacitySchema.safeParse({ eventId: id, seats: "2" }).success).toBe(true);
+    expect(eventCapacitySchema.safeParse({ eventId: id, seats: "0" }).success).toBe(false);
   });
 });
 

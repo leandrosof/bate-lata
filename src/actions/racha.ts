@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import {
@@ -32,7 +32,7 @@ import {
 } from "@/lib/racha";
 import { shuffle } from "@/lib/draw";
 import { getSessionUser } from "@/lib/session";
-import { teamVisualForIndex } from "@/lib/teams";
+import { MAX_PLAYERS_LIMIT, teamVisualForIndex } from "@/lib/teams";
 import {
   eventIdSchema,
   gameIdSchema,
@@ -44,6 +44,7 @@ import {
   rachaSessionSchema,
   rachaStartSchema,
   rachaSubstitutionSchema,
+  rachaTeamSizeSchema,
 } from "@/lib/validations";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -197,6 +198,24 @@ async function renumberQueue(tx: Tx, eventId: string): Promise<void> {
     from ranked
     where a.id = ranked.id
   `);
+}
+
+async function renumberWaitlist(tx: Tx, eventId: string): Promise<void> {
+  const rows = await tx
+    .select({ id: attendances.id, position: attendances.waitlistPosition })
+    .from(attendances)
+    .where(and(eq(attendances.eventId, eventId), eq(attendances.status, "WAITLIST")))
+    .orderBy(asc(attendances.waitlistPosition), asc(attendances.createdAt));
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const target = index + 1;
+    if (rows[index].position !== target) {
+      await tx
+        .update(attendances)
+        .set({ waitlistPosition: target, updatedAt: new Date() })
+        .where(eq(attendances.id, rows[index].id));
+    }
+  }
 }
 async function normalizeOrphanPlayers(
   tx: Tx,
@@ -591,7 +610,7 @@ export async function addToRachaAction(
   if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
 
   try {
-    await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [event] = await tx
         .select()
         .from(events)
@@ -599,11 +618,6 @@ export async function addToRachaAction(
         .for("update")
         .limit(1);
       if (!event) throw new AppError("Evento não encontrado.");
-
-      const [maxRow] = await tx
-        .select({ position: sql<number>`max(${attendances.queuePosition})` })
-        .from(attendances)
-        .where(eq(attendances.eventId, event.id));
 
       const [existing] = await tx
         .select()
@@ -616,28 +630,76 @@ export async function addToRachaAction(
         )
         .limit(1);
 
+      const alreadyReserved = Boolean(
+        existing &&
+          !existing.isOrganizer &&
+          (existing.status === "CONFIRMED" || existing.status === "PENDING_PAYMENT"),
+      );
+
+      let capacityNote = "";
+      if (!alreadyReserved) {
+        const [reservedRow] = await tx
+          .select({ total: count() })
+          .from(attendances)
+          .where(
+            and(
+              eq(attendances.eventId, event.id),
+              inArray(attendances.status, ["CONFIRMED", "PENDING_PAYMENT"]),
+              eq(attendances.isOrganizer, false),
+            ),
+          );
+        const reservedTotal = Number(reservedRow?.total ?? 0);
+        if (reservedTotal >= event.maxPlayers) {
+          const nextMax = event.maxPlayers + 1;
+          if (nextMax > MAX_PLAYERS_LIMIT) {
+            throw new AppError("Limite máximo de vagas atingido.");
+          }
+          await tx
+            .update(events)
+            .set({ maxPlayers: nextMax, updatedAt: new Date() })
+            .where(eq(events.id, event.id));
+          capacityNote = ` Limite aumentado para ${nextMax} vagas.`;
+        }
+      }
+
+      const keepPlaying = existing?.rotationStatus === "PLAYING";
+      const checkedInAt = existing?.checkedInAt ?? null;
+      const isPresent = Boolean(checkedInAt) && !keepPlaying;
+
+      const [maxRow] = isPresent
+        ? await tx
+            .select({ position: sql<number>`max(${attendances.queuePosition})` })
+            .from(attendances)
+            .where(eq(attendances.eventId, event.id))
+        : [{ position: null }];
+
       if (existing) {
         await tx
           .update(attendances)
           .set({
             status: "CONFIRMED",
             isOrganizer: false,
-            checkedInAt: new Date(),
-            rotationStatus: "WAITING",
-            queuePosition: Number(maxRow?.position ?? 0) + 1,
+            checkedInAt,
+            rotationStatus: keepPlaying ? "PLAYING" : isPresent ? "WAITING" : "IDLE",
+            queuePosition: isPresent ? Number(maxRow?.position ?? 0) + 1 : null,
             queueTeamId: null,
+            waitlistPosition: null,
+            reservationExpiresAt: null,
             leftAt: null,
             updatedAt: new Date(),
           })
           .where(eq(attendances.id, existing.id));
+        if (existing.status === "WAITLIST") {
+          await renumberWaitlist(tx, event.id);
+        }
       } else {
         await tx.insert(attendances).values({
           eventId: event.id,
           userId: parsed.data.userId,
           status: "CONFIRMED",
-          checkedInAt: new Date(),
-          rotationStatus: "WAITING",
-          queuePosition: Number(maxRow?.position ?? 0) + 1,
+          checkedInAt: null,
+          rotationStatus: "IDLE",
+          queuePosition: null,
         });
       }
 
@@ -647,7 +709,9 @@ export async function addToRachaAction(
         .where(and(eq(draws.eventId, event.id), eq(draws.status, "IN_PROGRESS")))
         .orderBy(desc(draws.createdAt))
         .limit(1);
-      if (draw) await tryMountAnyCourt(tx, draw, event.id);
+      if (draw && isPresent) await tryMountAnyCourt(tx, draw, event.id);
+
+      return { capacityNote, isPresent };
     });
 
     await recordAudit({
@@ -659,7 +723,11 @@ export async function addToRachaAction(
     });
 
     revalidatePath("/", "layout");
-    return success("Jogador adicionado à lista e à fila.");
+    return success(
+      result.isPresent
+        ? `Jogador adicionado à lista e à fila.${result.capacityNote}`
+        : `Jogador adicionado à lista.${result.capacityNote} Marque Chegou quando a pessoa estiver no local.`,
+    );
   } catch (error) {
     return actionFailure(error);
   }
@@ -725,9 +793,10 @@ export async function checkInAttendanceAction(
       await tx
         .update(attendances)
         .set({
-          checkedInAt: new Date(),
+          checkedInAt: row.checkedInAt ?? new Date(),
           rotationStatus: "WAITING",
           queuePosition: Number(maxRow?.position ?? 0) + 1,
+          queueTeamId: null,
           leftAt: null,
           updatedAt: new Date(),
         })
@@ -868,7 +937,7 @@ export async function startMatchAction(
         .where(and(eq(gamePlayers.gameId, game.id), isNull(gamePlayers.leftAt)));
       const sideA = roster.filter((row) => row.teamId === game.teamAId).length;
       const sideB = roster.filter((row) => row.teamId === game.teamBId).length;
-      if (sideA !== draw.teamSize || sideB !== draw.teamSize) {
+      if (sideA === 0 || sideA !== sideB) {
         throw new AppError("Complete os times antes de iniciar a partida.");
       }
 
@@ -930,7 +999,7 @@ export async function finalizeMatchAction(
         .where(and(eq(gamePlayers.gameId, game.id), isNull(gamePlayers.leftAt)));
       const sideA = roster.filter((row) => row.teamId === game.teamAId).map((row) => row.userId);
       const sideB = roster.filter((row) => row.teamId === game.teamBId).map((row) => row.userId);
-      if (sideA.length !== draw.teamSize || sideB.length !== draw.teamSize) {
+      if (sideA.length === 0 || sideA.length !== sideB.length) {
         throw new AppError("Há jogador faltando. Substitua antes de finalizar a partida.");
       }
 
@@ -1854,6 +1923,122 @@ export async function closeCourtAction(
 
     revalidatePath("/", "layout");
     return success("Quadra fechada.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function changeRachaTeamSizeAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = rachaTeamSizeSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") return fail("Ação restrita a administradores.");
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [draw] = await tx
+        .select()
+        .from(draws)
+        .where(eq(draws.id, parsed.data.drawId))
+        .for("update")
+        .limit(1);
+      if (!draw) throw new AppError("Sessão não encontrada.");
+      if (draw.status !== "IN_PROGRESS") throw new AppError("O racha não está em andamento.");
+      if (draw.teamSize === parsed.data.teamSize) {
+        return { message: `O racha já está com ${parsed.data.teamSize} jogadores por time.` };
+      }
+
+      await tx
+        .update(draws)
+        .set({ teamSize: parsed.data.teamSize })
+        .where(eq(draws.id, draw.id));
+
+      const pendingGames = await tx
+        .select({ id: games.id, court: games.court })
+        .from(games)
+        .where(and(eq(games.drawId, draw.id), eq(games.status, "NOT_STARTED")));
+
+      if (pendingGames.length > 0) {
+        const pendingIds = pendingGames.map((game) => game.id);
+        const pendingPlayers = await tx
+          .select({ userId: gamePlayers.userId })
+          .from(gamePlayers)
+          .where(inArray(gamePlayers.gameId, pendingIds));
+        const livePlayers = await tx
+          .select({ userId: gamePlayers.userId })
+          .from(gamePlayers)
+          .innerJoin(games, eq(games.id, gamePlayers.gameId))
+          .where(
+            and(
+              eq(games.drawId, draw.id),
+              eq(games.status, "IN_PROGRESS"),
+              isNull(gamePlayers.leftAt),
+            ),
+          );
+        const liveIds = new Set(livePlayers.map((row) => row.userId));
+        const requeueIds = [...new Set(pendingPlayers.map((row) => row.userId))].filter(
+          (userId) => !liveIds.has(userId),
+        );
+
+        await tx.delete(games).where(inArray(games.id, pendingIds));
+
+        const liveCourts = new Set(
+          (
+            await tx
+              .select({ court: games.court })
+              .from(games)
+              .where(and(eq(games.drawId, draw.id), eq(games.status, "IN_PROGRESS")))
+          ).map((row) => row.court),
+        );
+
+        for (const court of new Set(pendingGames.map((game) => game.court))) {
+          if (liveCourts.has(court)) continue;
+          await tx
+            .update(rotationCourts)
+            .set({
+              status: "EMPTY",
+              teamAId: null,
+              teamBId: null,
+              playerAIds: null,
+              playerBIds: null,
+              currentGameId: null,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(rotationCourts.sessionId, draw.id),
+                eq(rotationCourts.number, court),
+              ),
+            );
+        }
+
+        if (requeueIds.length > 0) {
+          await appendPlayersToQueue(tx, draw.eventId, requeueIds);
+        }
+      }
+
+      await tryMountAnyCourt(tx, { ...draw, teamSize: parsed.data.teamSize }, draw.eventId);
+      await renumberQueue(tx, draw.eventId);
+
+      return {
+        message: `Agora são ${parsed.data.teamSize} jogadores por time. A mudança vale a partir da próxima partida.`,
+      };
+    });
+
+    await recordAudit({
+      actorId: actor.id,
+      action: "racha.team_size",
+      entity: "draw",
+      entityId: parsed.data.drawId,
+      details: { teamSize: parsed.data.teamSize },
+    });
+
+    revalidatePath("/", "layout");
+    return success(result.message);
   } catch (error) {
     return actionFailure(error);
   }

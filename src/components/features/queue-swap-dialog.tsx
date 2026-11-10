@@ -68,7 +68,7 @@ export function QueueSwapDialog({
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
+        size="sm"
         title="Trocar de posição"
         onClick={() => {
           setSelected("");
@@ -76,6 +76,7 @@ export function QueueSwapDialog({
         }}
       >
         <ArrowLeftRight className="h-4 w-4" aria-hidden />
+        Trocar
       </Button>
 
       {open && typeof document !== "undefined"

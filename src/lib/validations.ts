@@ -169,6 +169,19 @@ export const rachaStartSchema = z.object({
 
 export const rachaSessionSchema = z.object({ drawId: uuidSchema });
 
+export const rachaTeamSizeSchema = z.object({
+  drawId: uuidSchema,
+  teamSize: z.coerce
+    .number()
+    .int()
+    .refine((value) => (TEAM_SIZE_OPTIONS as readonly number[]).includes(value), "Escolha 4, 5 ou 6."),
+});
+
+export const eventCapacitySchema = z.object({
+  eventId: uuidSchema,
+  seats: z.coerce.number().int().min(1, "Informe ao menos 1 vaga.").max(100, "Máximo de 100 vagas por vez."),
+});
+
 export const rachaAttendanceSchema = z.object({ attendanceId: uuidSchema });
 
 export const rachaQueueModeSchema = z.object({

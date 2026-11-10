@@ -1,7 +1,7 @@
 const HOUR_MS = 60 * 60 * 1000;
 
 export const CHECK_IN_OPENS_BEFORE_MS = 2 * HOUR_MS;
-export const CHECK_IN_DEFAULT_DURATION_MS = 4 * HOUR_MS;
+export const CHECK_IN_DEFAULT_DURATION_MS = 12 * HOUR_MS;
 export const CHECK_IN_CLOSES_AFTER_MS = 2 * HOUR_MS;
 
 export type CheckInEvent = {

@@ -19,6 +19,7 @@ import {
 import { adjustScoreAction, setScoreAction } from "@/actions/games";
 import {
   addToRachaAction,
+  changeRachaTeamSizeAction,
   checkInAttendanceAction,
   endRachaAction,
   finalizeMatchAction,
@@ -31,8 +32,10 @@ import {
   substitutePlayerAction,
   undoRachaAction,
 } from "@/actions/racha";
+import { AttendanceCheckIn } from "@/components/features/attendance-check-in";
 import { AutoRefresh } from "@/components/features/auto-refresh";
 import { CloseCourtDialog } from "@/components/features/close-court-dialog";
+import { EventCapacityControl } from "@/components/features/event-capacity-control";
 import { EventPicker } from "@/components/features/event-picker";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { QueueSwapDialog } from "@/components/features/queue-swap-dialog";
@@ -142,6 +145,16 @@ export default async function RachaPage({
 
       <EventPicker events={upcoming} selectedId={selected?.id} basePath="/racha" timeZone={settings.timezone} />
 
+      {selected ? (
+        <EventCapacityControl
+          eventId={selected.id}
+          reservedCount={selected.reservedCount}
+          maxPlayers={selected.maxPlayers}
+          isAdmin={isAdmin}
+          className="mt-3"
+        />
+      ) : null}
+
       {!selected || !roster || !view ? (
         <EmptyState
           icon={<Repeat className="h-5 w-5" />}
@@ -235,13 +248,51 @@ export default async function RachaPage({
               </CardHeader>
               <CardBody className="space-y-2 pt-2">
                 <p className="text-xs text-muted">
-                  Quem já confirmou presença entra na fila automaticamente ao iniciar o racha.
+                  Quem confirmou presença e marcou <strong>Chegou</strong> entra na fila ao iniciar o racha.
                 </p>
+                {roster.confirmed.length > 0 ? (
+                  <ul className="divide-y divide-line/60">
+                    {roster.confirmed.map((player) => (
+                      <li
+                        key={player.attendanceId}
+                        className="flex flex-wrap items-center gap-2 py-1.5"
+                      >
+                        <Avatar
+                          userId={player.userId}
+                          name={player.name}
+                          version={player.avatarUpdatedAt}
+                          size="sm"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-sm text-ink">{player.name}</span>
+                        {player.checkedInAt ? null : (
+                          <span className="text-[10px] uppercase tracking-wider text-muted">Não chegou</span>
+                        )}
+                        {isAdmin || player.userId === user.id ? (
+                          <AttendanceCheckIn
+                            attendanceId={player.attendanceId}
+                            checkedInAt={player.checkedInAt}
+                            event={selected}
+                            timeZone={settings.timezone}
+                            isAdmin={isAdmin}
+                            isSelf={player.userId === user.id}
+                            playerName={player.name}
+                            compact
+                            compactLabel={player.userId === user.id ? "Cheguei" : "Chegou"}
+                          />
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {isAdmin && roster.pending.length > 0 ? (
                   <Disclosure
-                    title="Adicionar jogador"
+                    title="Adicionar jogador à lista"
                     subtitle={`${roster.pending.length} jogador(es) sem resposta`}
                   >
+                    <p className="mb-2 text-[11px] text-muted">
+                      Adiciona à lista sem marcar presença. Se estiver cheio, o limite sobe em 1. Marque
+                      Chegou quando a pessoa estiver no local.
+                    </p>
                     <ul className="grid gap-1 sm:grid-cols-2">
                       {roster.pending.map((player) => (
                         <li
@@ -264,7 +315,7 @@ export default async function RachaPage({
                             size="sm"
                             icon={<UserPlus className="h-3.5 w-3.5" aria-hidden />}
                           >
-                            Adicionar
+                            Adicionar à lista
                           </ActionButton>
                         </li>
                       ))}
@@ -314,6 +365,36 @@ export default async function RachaPage({
                   ) : null}
                 </CardHeader>
                 <CardBody className="pt-3">
+                  {isAdmin ? (
+                    <div className="mb-3 rounded-xl border border-line bg-surface-2/50 p-2.5">
+                      <ActionForm
+                        action={changeRachaTeamSizeAction}
+                        hiddenFields={{ drawId: session.id }}
+                        submitLabel="Aplicar"
+                        variant="secondary"
+                        size="sm"
+                        className="flex flex-wrap items-end gap-2 space-y-0"
+                      >
+                        <div>
+                          <Label htmlFor="racha-team-size">Jogadores por time</Label>
+                          <Select
+                            id="racha-team-size"
+                            name="teamSize"
+                            defaultValue={String(session.teamSize)}
+                          >
+                            {TEAM_SIZE_OPTIONS.map((size) => (
+                              <option key={size} value={size}>
+                                {size} por time
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                      </ActionForm>
+                      <p className="mt-1.5 text-[11px] text-muted">
+                        Vale a partir da próxima partida; a partida atual continua com o tamanho anterior.
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {courts.map((court) => (
                       <Link
@@ -633,7 +714,7 @@ export default async function RachaPage({
                               {group.players.map((player) => {
                                 const index = view.queue.findIndex((item) => item.userId === player.userId);
                                 return (
-                                  <li key={player.userId} className="flex items-center gap-2 rounded-lg px-1.5 py-1">
+                                  <li key={player.userId} className="flex flex-wrap items-center gap-2 rounded-lg px-1.5 py-1">
                                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-warning-soft text-[10px] font-bold text-warning">
                                       #{index + 1}
                                     </span>
@@ -644,7 +725,7 @@ export default async function RachaPage({
                                       {player.gamesPlayed}j
                                     </span>
                                     {isAdmin ? (
-                                      <div className="flex items-center gap-0.5">
+                                      <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
                                         <QueueSwapDialog
                                           attendanceId={player.attendanceId}
                                           playerName={player.name}
@@ -658,12 +739,13 @@ export default async function RachaPage({
                                           action={leaveRachaAction}
                                           fields={{ attendanceId: player.attendanceId }}
                                           variant="ghost"
-                                          size="icon-sm"
-                                          className="text-muted hover:bg-danger-soft hover:text-danger"
+                                          size="sm"
+                                          className="text-danger hover:bg-danger-soft"
                                           confirmMessage={`Remover ${player.name} da fila?`}
                                           title="Remover da fila"
+                                          icon={<LogOut className="h-4 w-4" aria-hidden />}
                                         >
-                                          <LogOut className="h-4 w-4" aria-hidden />
+                                          Remover
                                         </ActionButton>
                                       </div>
                                     ) : null}
@@ -704,7 +786,7 @@ export default async function RachaPage({
                   </Alert>
                   <ul className="divide-y divide-line/60">
                     {roster.confirmed.map((player) => (
-                      <li key={player.attendanceId} className="flex items-center gap-2 py-2">
+                      <li key={player.attendanceId} className="flex flex-wrap items-center gap-2 py-2">
                         <Avatar
                           userId={player.userId}
                           name={player.name}
@@ -713,28 +795,33 @@ export default async function RachaPage({
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm text-ink">{player.name}</p>
-                          <p className="text-[10px] uppercase tracking-wider text-muted">
-                            {onCourtIds.has(player.userId)
-                              ? "Em quadra"
-                              : player.rotationStatus === "WAITING"
-                                ? "Na fila"
-                                : player.rotationStatus === "LEFT"
-                                  ? "Saiu"
-                                  : player.checkedInAt
-                                    ? "Presente"
-                                    : "Não chegou"}
-                            {player.gamesPlayed > 0 ? ` · ${player.gamesPlayed} jogo(s)` : ""}
+                          <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted">
+                            {player.rotationStatus === "LEFT" ? (
+                              <LogOut className="h-3 w-3" aria-hidden />
+                            ) : null}
+                            <span>
+                              {onCourtIds.has(player.userId)
+                                ? "Em quadra"
+                                : player.rotationStatus === "WAITING"
+                                  ? "Na fila"
+                                  : player.rotationStatus === "LEFT"
+                                    ? "Saiu"
+                                    : player.checkedInAt
+                                      ? "Presente"
+                                      : "Não chegou"}
+                              {player.gamesPlayed > 0 ? ` · ${player.gamesPlayed} jogo(s)` : ""}
+                            </span>
                           </p>
                         </div>
                         {isAdmin || player.userId === user.id ? (
-                          <div className="flex items-center gap-0.5">
+                          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
                             {!player.checkedInAt || player.rotationStatus === "LEFT" ? (
                               <ActionButton
                                 action={checkInAttendanceAction}
                                 fields={{ attendanceId: player.attendanceId }}
-                                variant={isAdmin ? "outline" : "ghost"}
-                                size={isAdmin ? "sm" : "icon-sm"}
-                                icon={isAdmin ? <LogIn className="h-3.5 w-3.5" aria-hidden /> : undefined}
+                                variant="outline"
+                                size="sm"
+                                icon={<LogIn className="h-3.5 w-3.5" aria-hidden />}
                                 confirmTitle="Confirmar chegada"
                                 confirmMessage={
                                   player.userId === user.id
@@ -747,18 +834,24 @@ export default async function RachaPage({
                                     : "Marcar chegada (somente no local)"
                                 }
                               >
-                                {isAdmin ? "Chegou" : <LogIn className="h-3.5 w-3.5" aria-hidden />}
+                                {player.rotationStatus === "LEFT"
+                                  ? "Voltar"
+                                  : isAdmin
+                                    ? "Chegou"
+                                    : "Cheguei"}
                               </ActionButton>
                             ) : player.rotationStatus !== "PLAYING" ? (
                               <ActionButton
                                 action={leaveRachaAction}
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
+                                className="text-danger hover:bg-danger-soft"
                                 confirmMessage={`Marcar ${player.name} como saído?`}
                                 title="Marcar saída"
+                                icon={<LogOut className="h-3.5 w-3.5" aria-hidden />}
                               >
-                                <LogOut className="h-3.5 w-3.5" aria-hidden />
+                                Marcar saída
                               </ActionButton>
                             ) : null}
                           </div>
@@ -769,6 +862,10 @@ export default async function RachaPage({
 
                   {isAdmin && roster.pending.length > 0 ? (
                     <Disclosure title="Adicionar jogador à lista" subtitle={`${roster.pending.length} jogador(es) sem resposta`}>
+                      <p className="mb-2 text-[11px] text-muted">
+                        Adiciona à lista sem marcar presença. Se estiver cheio, o limite sobe em 1. Marque
+                        Chegou quando a pessoa estiver no local.
+                      </p>
                       <ul className="grid gap-1 sm:grid-cols-2">
                         {roster.pending.map((player) => (
                           <li
@@ -791,7 +888,7 @@ export default async function RachaPage({
                               size="sm"
                               icon={<UserPlus className="h-3.5 w-3.5" aria-hidden />}
                             >
-                              Adicionar
+                              Adicionar à lista
                             </ActionButton>
                           </li>
                         ))}

@@ -28,6 +28,7 @@ import { AutoRefresh } from "@/components/features/auto-refresh";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { PaymentProofPreview } from "@/components/features/payment-proof-preview";
 import { ShareAttendanceButton } from "@/components/features/share-attendance-button";
+import { EventCapacityControl } from "@/components/features/event-capacity-control";
 import { EventPicker } from "@/components/features/event-picker";
 import { EventStatusBadge } from "@/components/features/status-badge";
 import { EventPriceBadge } from "@/components/features/event-price-badge";
@@ -198,6 +199,13 @@ export default async function AttendancePage({
                 value={reservedCount}
                 max={selected.maxPlayers}
                 tone={isFull ? "success" : remaining <= 3 ? "warning" : "brand"}
+              />
+
+              <EventCapacityControl
+                eventId={selected.id}
+                reservedCount={reservedCount}
+                maxPlayers={selected.maxPlayers}
+                isAdmin={isAdmin}
               />
 
               <div className="flex flex-wrap items-center gap-2">
@@ -382,7 +390,7 @@ export default async function AttendancePage({
                 ) : (
                   <ul className="divide-y divide-line/60">
                     {roster.confirmed.map((player, index) => (
-                      <li key={player.attendanceId} className="flex items-center gap-2.5 py-2">
+                      <li key={player.attendanceId} className="flex flex-wrap items-center gap-2.5 py-2">
                         <span className="w-4 text-right text-[10px] font-bold text-muted/70">{index + 1}</span>
                         <Avatar userId={player.userId} name={player.name} version={player.avatarUpdatedAt} size="sm" />
                         <div className="min-w-0 flex-1">
@@ -399,7 +407,7 @@ export default async function AttendancePage({
                             <p className="text-[10px] uppercase tracking-wider text-muted">Ainda não chegou</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-0.5">
+                        <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
                           {isAdmin || player.userId === user.id ? (
                             <AttendanceCheckIn
                               attendanceId={player.attendanceId}
@@ -410,33 +418,37 @@ export default async function AttendancePage({
                               isSelf={player.userId === user.id}
                               playerName={player.name}
                               compact
+                              compactLabel={player.userId === user.id ? "Cheguei" : "Chegou"}
                             />
                           ) : null}
                           {isAdmin ? (
-                            <>
+                            <div className="flex items-center gap-1 border-l border-line/60 pl-1.5">
                               {player.userId === user.id ? (
                                 <ActionButton
                                   action={toggleOrganizerAction}
                                   fields={{ attendanceId: player.attendanceId }}
                                   variant="ghost"
-                                  size="icon-sm"
+                                  size="sm"
                                   confirmMessage="Marcar você como organizador? Você sai da lista de jogadores e não entra nos times."
                                   title="Só organizar"
+                                  icon={<UserCog className="h-3.5 w-3.5" aria-hidden />}
                                 >
-                                  <UserCog className="h-3.5 w-3.5" aria-hidden />
+                                  Organizar
                                 </ActionButton>
                               ) : null}
                               <ActionButton
                                 action={adminRemoveAttendanceAction}
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
+                                className="text-danger hover:bg-danger-soft"
                                 confirmMessage={`Remover ${player.name} da lista?`}
-                                title="Remover presença"
+                                title="Remover da lista"
+                                icon={<X className="h-3.5 w-3.5" aria-hidden />}
                               >
-                                <X className="h-3.5 w-3.5" aria-hidden />
+                                Remover da lista
                               </ActionButton>
-                            </>
+                            </div>
                           ) : null}
                         </div>
                       </li>
@@ -464,7 +476,7 @@ export default async function AttendancePage({
                 ) : (
                   <ul className="divide-y divide-line/60">
                     {roster.waitlist.map((player, index) => (
-                      <li key={player.attendanceId} className="flex items-center gap-2 py-2">
+                      <li key={player.attendanceId} className="flex flex-wrap items-center gap-2 py-2">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(245,185,66,0.14)] text-[10px] font-bold text-warning">
                           {player.waitlistPosition ?? index + 1}
                         </span>
@@ -478,16 +490,17 @@ export default async function AttendancePage({
                           ) : null}
                         </p>
                         {isAdmin ? (
-                          <div className="flex items-center gap-0.5">
+                          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
                             {index > 0 ? (
                               <ActionButton
                                 action={adminMoveWaitlistAction}
                                 fields={{ attendanceId: player.attendanceId, direction: "up" }}
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
                                 title="Subir na fila"
+                                icon={<ArrowUp className="h-3.5 w-3.5" aria-hidden />}
                               >
-                                <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                                Subir
                               </ActionButton>
                             ) : null}
                             {index < roster.waitlist.length - 1 ? (
@@ -495,10 +508,11 @@ export default async function AttendancePage({
                                 action={adminMoveWaitlistAction}
                                 fields={{ attendanceId: player.attendanceId, direction: "down" }}
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
                                 title="Descer na fila"
+                                icon={<ArrowDown className="h-3.5 w-3.5" aria-hidden />}
                               >
-                                <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                                Descer
                               </ActionButton>
                             ) : null}
                             {!isFull ? (
@@ -506,21 +520,24 @@ export default async function AttendancePage({
                                 action={adminPromoteAttendanceAction}
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
                                 title="Promover para confirmado"
+                                icon={<Check className="h-3.5 w-3.5" aria-hidden />}
                               >
-                                <Check className="h-3.5 w-3.5" aria-hidden />
+                                Promover
                               </ActionButton>
                             ) : null}
                             <ActionButton
                               action={adminRemoveAttendanceAction}
                               fields={{ attendanceId: player.attendanceId }}
                               variant="ghost"
-                              size="icon-sm"
+                              size="sm"
+                              className="text-danger hover:bg-danger-soft"
                               confirmMessage={`Remover ${player.name} da fila?`}
                               title="Remover da fila"
+                              icon={<X className="h-3.5 w-3.5" aria-hidden />}
                             >
-                              <X className="h-3.5 w-3.5" aria-hidden />
+                              Remover
                             </ActionButton>
                           </div>
                         ) : null}
@@ -604,7 +621,7 @@ export default async function AttendancePage({
                           size="sm"
                           icon={<UserPlus className="h-3.5 w-3.5" aria-hidden />}
                         >
-                          Confirmar
+                          Adicionar à lista
                         </ActionButton>
                       ) : null}
                     </li>

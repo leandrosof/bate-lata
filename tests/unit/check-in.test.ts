@@ -32,4 +32,11 @@ describe("checkInWindow", () => {
     expect(checkInWindow({ ...event, status: "CANCELLED" }, now).reason).toBe("cancelled");
     expect(checkInWindow({ ...event, status: "FINISHED" }, now).reason).toBe("finished");
   });
+
+  it("mantém a chegada aberta em eventos longos sem horário de término", () => {
+    const longEvent = { ...event, endsAt: null };
+    expect(checkInWindow(longEvent, new Date("2026-12-06T06:00:00.000Z")).open).toBe(true);
+    expect(checkInWindow(longEvent, new Date("2026-12-06T11:00:00.000Z")).open).toBe(true);
+    expect(checkInWindow(longEvent, new Date("2026-12-06T13:00:00.000Z")).reason).toBe("after");
+  });
 });

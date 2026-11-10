@@ -302,7 +302,7 @@ export default async function UpcomingPage({
                         />
                       )}
                     </div>
-                    <div className="ml-auto flex items-center gap-1">
+                    <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
                       <Link
                         href={`/presencas?evento=${event.id}`}
                         className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
@@ -316,16 +316,17 @@ export default async function UpcomingPage({
                         Racha
                       </Link>
                       {event.publicToken ? (
-                        <ShareEventButton token={event.publicToken} title={event.title} compact />
+                        <ShareEventButton token={event.publicToken} title={event.title} />
                       ) : null}
                       {user.role === "ADMIN" ? (
                         <Link
                           href={`/admin/eventos?edit=${event.id}#edit-${event.id}`}
                           aria-label="Editar evento"
                           title="Editar evento"
-                          className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
+                          className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
                         >
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
+                          Editar
                         </Link>
                       ) : null}
                     </div>
