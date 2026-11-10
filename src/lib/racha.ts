@@ -177,3 +177,11 @@ export function removeFromQueue(
 ): string[] {
   return queue.filter((id) => id !== userId);
 }
+
+export function undoReferencesGame(
+  undoState: unknown,
+  gameIds: readonly string[],
+): boolean {
+  const nextGameId = (undoState as { nextGameId?: string | null } | null)?.nextGameId;
+  return Boolean(nextGameId && gameIds.includes(nextGameId));
+}

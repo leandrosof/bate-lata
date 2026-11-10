@@ -23,16 +23,18 @@ import {
   type ActionState,
 } from "@/lib/action";
 import { recordAudit } from "@/lib/audit";
+import { nextCapacityLimit } from "@/lib/capacity";
 import { checkInWindow } from "@/lib/check-in";
 import {
   planFirstMatch,
   planNextMatch,
+  undoReferencesGame,
   type RachaPlayer,
   type RachaRule,
 } from "@/lib/racha";
 import { shuffle } from "@/lib/draw";
 import { getSessionUser } from "@/lib/session";
-import { MAX_PLAYERS_LIMIT, teamVisualForIndex } from "@/lib/teams";
+import { teamVisualForIndex } from "@/lib/teams";
 import {
   eventIdSchema,
   gameIdSchema,
@@ -650,8 +652,8 @@ export async function addToRachaAction(
           );
         const reservedTotal = Number(reservedRow?.total ?? 0);
         if (reservedTotal >= event.maxPlayers) {
-          const nextMax = event.maxPlayers + 1;
-          if (nextMax > MAX_PLAYERS_LIMIT) {
+          const nextMax = nextCapacityLimit(event.maxPlayers, reservedTotal);
+          if (nextMax <= event.maxPlayers) {
             throw new AppError("Limite máximo de vagas atingido.");
           }
           await tx
@@ -1992,6 +1994,16 @@ export async function changeRachaTeamSizeAction(
         const requeueIds = [...new Set(pendingPlayers.map((row) => row.userId))].filter(
           (userId) => !liveIds.has(userId),
         );
+
+        const finishedGames = await tx
+          .select({ id: games.id, undoState: games.undoState })
+          .from(games)
+          .where(and(eq(games.drawId, draw.id), eq(games.status, "FINISHED")));
+        for (const finished of finishedGames) {
+          if (undoReferencesGame(finished.undoState, pendingIds)) {
+            await tx.update(games).set({ undoState: null }).where(eq(games.id, finished.id));
+          }
+        }
 
         await tx.delete(games).where(inArray(games.id, pendingIds));
 

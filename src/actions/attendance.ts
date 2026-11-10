@@ -13,6 +13,7 @@ import {
   type ActionState,
 } from "@/lib/action";
 import { recordAudit } from "@/lib/audit";
+import { nextCapacityLimit } from "@/lib/capacity";
 import {
   attendanceConfirmedEmail,
   attendanceWaitlistEmail,
@@ -24,7 +25,6 @@ import { queueEmail } from "@/lib/notify";
 import { formatCents } from "@/lib/money";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
-import { MAX_PLAYERS_LIMIT } from "@/lib/teams";
 import { formatDateLong, formatTime } from "@/lib/time";
 import { absoluteUrl } from "@/lib/utils";
 import {
@@ -450,8 +450,8 @@ export async function adminAddAttendanceAction(
 
       let capacityNote = "";
       if (reservedTotal >= event.maxPlayers) {
-        const nextMax = event.maxPlayers + 1;
-        if (nextMax > MAX_PLAYERS_LIMIT) {
+        const nextMax = nextCapacityLimit(event.maxPlayers, reservedTotal);
+        if (nextMax <= event.maxPlayers) {
           throw new AppError("Limite máximo de vagas atingido.");
         }
         await tx
@@ -634,10 +634,11 @@ export async function adminPromoteAttendanceAction(
           ),
         );
 
+      const reservedTotal = Number(reservedRow?.total ?? 0);
       let capacityNote = "";
-      if (Number(reservedRow?.total ?? 0) >= event.maxPlayers) {
-        const nextMax = event.maxPlayers + 1;
-        if (nextMax > MAX_PLAYERS_LIMIT) {
+      if (reservedTotal >= event.maxPlayers) {
+        const nextMax = nextCapacityLimit(event.maxPlayers, reservedTotal);
+        if (nextMax <= event.maxPlayers) {
           throw new AppError("Limite máximo de vagas atingido.");
         }
         await tx
@@ -707,7 +708,18 @@ export async function adminIncreaseEventCapacityAction(
         .limit(1);
       if (!event) throw new AppError("Evento não encontrado.");
 
-      const nextMax = Math.min(event.maxPlayers + parsed.data.seats, MAX_PLAYERS_LIMIT);
+      const [reservedRow] = await tx
+        .select({ total: count() })
+        .from(attendances)
+        .where(
+          and(
+            eq(attendances.eventId, event.id),
+            inArray(attendances.status, ["CONFIRMED", "PENDING_PAYMENT"]),
+            eq(attendances.isOrganizer, false),
+          ),
+        );
+      const reservedTotal = Number(reservedRow?.total ?? 0);
+      const nextMax = nextCapacityLimit(event.maxPlayers, reservedTotal, parsed.data.seats);
       if (nextMax <= event.maxPlayers) {
         throw new AppError("Limite máximo de vagas atingido.");
       }

@@ -6,6 +6,7 @@ import {
   planNextMatch,
   removeFromQueue,
   substitutePlayer,
+  undoReferencesGame,
   type RachaPlayer,
 } from "@/lib/racha";
 
@@ -204,6 +205,14 @@ describe("substituição", () => {
     expect(() =>
       substitutePlayer({ sideA: ["a"], sideB: ["b"], queue: ["c"] }, "a", "b"),
     ).toThrow();
+  });
+});
+
+describe("undoReferencesGame", () => {
+  it("identifica quando o desfazer aponta para uma partida removida", () => {
+    expect(undoReferencesGame({ nextGameId: "game-2" }, ["game-1", "game-2"])).toBe(true);
+    expect(undoReferencesGame({ nextGameId: "game-3" }, ["game-1", "game-2"])).toBe(false);
+    expect(undoReferencesGame(null, ["game-2"])).toBe(false);
   });
 });
 
