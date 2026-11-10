@@ -143,7 +143,7 @@ test("chegada mostra aviso de local e pode ser desfeita", async ({ page }) => {
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText("já estiver no local");
   await dialog.getByRole("button", { name: "Confirmar" }).click();
-  await expect(target.getByText(/Presente desde/)).toBeVisible({ timeout: 20_000 });
+  await expect(target.getByText("Presente", { exact: true })).toBeVisible({ timeout: 20_000 });
 
   await page.goto("/admin");
   await expect(page.getByText("1 já chegaram")).toBeVisible({ timeout: 20_000 });

@@ -19,7 +19,6 @@ import {
 import { adjustScoreAction, setScoreAction } from "@/actions/games";
 import {
   addToRachaAction,
-  changeRachaTeamSizeAction,
   checkInAttendanceAction,
   endRachaAction,
   finalizeMatchAction,
@@ -39,6 +38,7 @@ import { EventCapacityControl } from "@/components/features/event-capacity-contr
 import { EventPicker } from "@/components/features/event-picker";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { QueueSwapDialog } from "@/components/features/queue-swap-dialog";
+import { RachaTeamSizeControl } from "@/components/features/racha-team-size-control";
 import { GameDurationBadge } from "@/components/features/game-duration";
 import { DrawStatusBadge } from "@/components/features/status-badge";
 import { TeamCard, TeamPill } from "@/components/features/team-card";
@@ -366,33 +366,8 @@ export default async function RachaPage({
                 </CardHeader>
                 <CardBody className="pt-3">
                   {isAdmin ? (
-                    <div className="mb-3 rounded-xl border border-line bg-surface-2/50 p-2.5">
-                      <ActionForm
-                        action={changeRachaTeamSizeAction}
-                        hiddenFields={{ drawId: session.id }}
-                        submitLabel="Aplicar"
-                        variant="secondary"
-                        size="sm"
-                        className="flex flex-wrap items-end gap-2 space-y-0"
-                      >
-                        <div>
-                          <Label htmlFor="racha-team-size">Jogadores por time</Label>
-                          <Select
-                            id="racha-team-size"
-                            name="teamSize"
-                            defaultValue={String(session.teamSize)}
-                          >
-                            {TEAM_SIZE_OPTIONS.map((size) => (
-                              <option key={size} value={size}>
-                                {size} por time
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
-                      </ActionForm>
-                      <p className="mt-1.5 text-[11px] text-muted">
-                        Vale a partir da próxima partida; a partida atual continua com o tamanho anterior.
-                      </p>
+                    <div className="mb-3">
+                      <RachaTeamSizeControl drawId={session.id} teamSize={session.teamSize} />
                     </div>
                   ) : null}
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -739,14 +714,12 @@ export default async function RachaPage({
                                           action={leaveRachaAction}
                                           fields={{ attendanceId: player.attendanceId }}
                                           variant="ghost"
-                                          size="sm"
+                                          size="icon-sm"
                                           className="text-danger hover:bg-danger-soft"
                                           confirmMessage={`Remover ${player.name} da fila?`}
                                           title="Remover da fila"
                                           icon={<LogOut className="h-4 w-4" aria-hidden />}
-                                        >
-                                          Remover
-                                        </ActionButton>
+                                        />
                                       </div>
                                     ) : null}
                                   </li>
@@ -821,6 +794,7 @@ export default async function RachaPage({
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="outline"
                                 size="sm"
+                                className="w-28 justify-center"
                                 icon={<LogIn className="h-3.5 w-3.5" aria-hidden />}
                                 confirmTitle="Confirmar chegada"
                                 confirmMessage={
@@ -845,14 +819,12 @@ export default async function RachaPage({
                                 action={leaveRachaAction}
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="ghost"
-                                size="sm"
+                                size="icon-sm"
                                 className="text-danger hover:bg-danger-soft"
                                 confirmMessage={`Marcar ${player.name} como saído?`}
                                 title="Marcar saída"
                                 icon={<LogOut className="h-3.5 w-3.5" aria-hidden />}
-                              >
-                                Marcar saída
-                              </ActionButton>
+                              />
                             ) : null}
                           </div>
                         ) : null}

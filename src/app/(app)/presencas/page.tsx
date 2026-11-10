@@ -407,7 +407,7 @@ export default async function AttendancePage({
                             <p className="text-[10px] uppercase tracking-wider text-muted">Ainda não chegou</p>
                           )}
                         </div>
-                        <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+                        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
                           {isAdmin || player.userId === user.id ? (
                             <AttendanceCheckIn
                               attendanceId={player.attendanceId}
@@ -422,7 +422,7 @@ export default async function AttendancePage({
                             />
                           ) : null}
                           {isAdmin ? (
-                            <div className="flex items-center gap-1 border-l border-line/60 pl-1.5">
+                            <>
                               {player.userId === user.id ? (
                                 <ActionButton
                                   action={toggleOrganizerAction}
@@ -440,15 +440,13 @@ export default async function AttendancePage({
                                 action={adminRemoveAttendanceAction}
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="ghost"
-                                size="sm"
+                                size="icon-sm"
                                 className="text-danger hover:bg-danger-soft"
                                 confirmMessage={`Remover ${player.name} da lista?`}
                                 title="Remover da lista"
                                 icon={<X className="h-3.5 w-3.5" aria-hidden />}
-                              >
-                                Remover da lista
-                              </ActionButton>
-                            </div>
+                              />
+                            </>
                           ) : null}
                         </div>
                       </li>

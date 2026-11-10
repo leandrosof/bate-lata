@@ -46,9 +46,13 @@ export function AttendanceCheckIn({
   if (checkedInAt) {
     return (
       <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
-        <Badge tone="success" className="gap-1">
+        <Badge
+          tone="success"
+          className="gap-1"
+          title={`Presente desde ${formatTime(checkedInAt, timeZone)}`}
+        >
           <Check className="h-3 w-3" aria-hidden />
-          Presente desde {formatTime(checkedInAt, timeZone)}
+          Presente
         </Badge>
         {canManage ? (
           <ActionButton
