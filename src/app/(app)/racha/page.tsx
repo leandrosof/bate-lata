@@ -732,8 +732,9 @@ export default async function RachaPage({
                               <ActionButton
                                 action={checkInAttendanceAction}
                                 fields={{ attendanceId: player.attendanceId }}
-                                variant="ghost"
-                                size="icon-sm"
+                                variant={isAdmin ? "outline" : "ghost"}
+                                size={isAdmin ? "sm" : "icon-sm"}
+                                icon={isAdmin ? <LogIn className="h-3.5 w-3.5" aria-hidden /> : undefined}
                                 confirmTitle="Confirmar chegada"
                                 confirmMessage={
                                   player.userId === user.id
@@ -746,7 +747,7 @@ export default async function RachaPage({
                                     : "Marcar chegada (somente no local)"
                                 }
                               >
-                                <LogIn className="h-3.5 w-3.5" aria-hidden />
+                                {isAdmin ? "Chegou" : <LogIn className="h-3.5 w-3.5" aria-hidden />}
                               </ActionButton>
                             ) : player.rotationStatus !== "PLAYING" ? (
                               <ActionButton
