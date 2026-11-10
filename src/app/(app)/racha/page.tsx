@@ -19,7 +19,7 @@ import {
 import { adjustScoreAction, setScoreAction } from "@/actions/games";
 import {
   addToRachaAction,
-  checkInRachaAction,
+  checkInAttendanceAction,
   endRachaAction,
   finalizeMatchAction,
   leaveRachaAction,
@@ -698,6 +698,10 @@ export default async function RachaPage({
                       isAdmin
                     />
                   ) : null}
+                  <Alert tone="warning">
+                    Marque <strong>Cheguei</strong> somente quando o jogador estiver no local do jogo. Só quem
+                    marcar chegada entra na fila e nos times.
+                  </Alert>
                   <ul className="divide-y divide-line/60">
                     {roster.confirmed.map((player) => (
                       <li key={player.attendanceId} className="flex items-center gap-2 py-2">
@@ -726,11 +730,21 @@ export default async function RachaPage({
                           <div className="flex items-center gap-0.5">
                             {!player.checkedInAt || player.rotationStatus === "LEFT" ? (
                               <ActionButton
-                                action={checkInRachaAction}
+                                action={checkInAttendanceAction}
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="ghost"
                                 size="icon-sm"
-                                title={player.rotationStatus === "LEFT" ? "Voltar para a fila" : "Marcar chegada"}
+                                confirmTitle="Confirmar chegada"
+                                confirmMessage={
+                                  player.userId === user.id
+                                    ? "Marque apenas se você já estiver no local do evento. Confirmar chegada?"
+                                    : `Marcar chegada de ${player.name}? Confirme apenas se a pessoa já estiver no local.`
+                                }
+                                title={
+                                  player.rotationStatus === "LEFT"
+                                    ? "Voltar para a fila"
+                                    : "Marcar chegada (somente no local)"
+                                }
                               >
                                 <LogIn className="h-3.5 w-3.5" aria-hidden />
                               </ActionButton>

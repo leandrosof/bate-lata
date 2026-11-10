@@ -125,8 +125,65 @@ test("administrador gerencia a fila e promove jogador automaticamente", async ({
   await expect(confirmed.getByText("Larissa Melo")).toHaveCount(0);
 });
 
+test("chegada mostra aviso de local e pode ser desfeita", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto("/presencas");
+
+  await expect(
+    page.getByText(/Cheguei.*apenas quando o jogador estiver no local do jogo/),
+  ).toBeVisible();
+
+  const target = page
+    .getByTestId("confirmed-card")
+    .locator("li")
+    .filter({ hasText: "Ana Souza" })
+    .first();
+
+  await target.getByTitle("Marcar chegada (somente no local)").click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText("já estiver no local");
+  await dialog.getByRole("button", { name: "Confirmar" }).click();
+  await expect(target.getByText(/Presente desde/)).toBeVisible({ timeout: 20_000 });
+
+  await page.goto("/admin");
+  await expect(page.getByText("1 já chegaram")).toBeVisible({ timeout: 20_000 });
+
+  await page.goto("/presencas");
+  const refreshed = page
+    .getByTestId("confirmed-card")
+    .locator("li")
+    .filter({ hasText: "Ana Souza" })
+    .first();
+  await refreshed.getByTitle("Desfazer chegada").click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Confirmar" }).click();
+  await expect(refreshed.getByText("Ainda não chegou")).toBeVisible({ timeout: 20_000 });
+});
+
+async function checkInAllConfirmed(page: Page) {
+  const confirmed = page.getByTestId("confirmed-card");
+  const buttons = confirmed.getByTitle("Marcar chegada (somente no local)");
+  await expect(buttons.first()).toBeVisible();
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const remaining = await buttons.count();
+    if (remaining === 0) {
+      await page.waitForTimeout(500);
+      if ((await buttons.count()) === 0) break;
+      continue;
+    }
+
+    await buttons.first().click();
+    await confirmAction(page);
+    await page.waitForTimeout(300);
+  }
+
+  await expect(buttons).toHaveCount(0);
+}
+
 test("racha: inicia, substitui, finaliza e monta o próximo jogo", async ({ page }) => {
   await loginAdmin(page);
+  await page.goto("/presencas");
+  await checkInAllConfirmed(page);
   await page.goto("/racha");
 
   await page.selectOption("#teamSize", "4");

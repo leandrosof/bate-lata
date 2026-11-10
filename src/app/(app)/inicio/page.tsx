@@ -16,6 +16,7 @@ import { getSettings } from "@/lib/settings";
 import { getEventRoster, listOperationalEvents } from "@/db/queries/events";
 import { listAnnouncements } from "@/db/queries/announcements";
 import { listLiveGames } from "@/db/queries/games";
+import { AttendanceCheckIn } from "@/components/features/attendance-check-in";
 import { AttendanceControls } from "@/components/features/attendance-controls";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
 import { ShareEventButton } from "@/components/features/share-event-button";
@@ -64,6 +65,8 @@ export default async function HomePage() {
     waitlist.find((row) => row.userId === user.id) ??
     null;
 
+  const checkedInCount = confirmed.filter((row) => row.checkedInAt).length;
+  const confirmedMine = mine?.status === "CONFIRMED" ? mine : null;
   const reserved = confirmed.length + pendingPayment.length;
   const isFull = Boolean(nextEvent && reserved >= nextEvent.maxPlayers);
   const remaining = nextEvent ? Math.max(nextEvent.maxPlayers - reserved, 0) : 0;
@@ -193,6 +196,9 @@ export default async function HomePage() {
                 <p className="text-sm text-muted">
                   <strong className="font-display text-2xl text-ink">{confirmed.length}</strong>
                   <span className="text-muted">/{nextEvent.maxPlayers} confirmados</span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wider text-brand">
+                    {checkedInCount} já chegaram
+                  </span>
                 </p>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted">
                   {!eventIsOpen
@@ -293,6 +299,18 @@ export default async function HomePage() {
                   requiresPayment={nextEvent.paymentMode === "PAID"}
                 />
               )}
+              {confirmedMine && !confirmedMine.isOrganizer ? (
+                <AttendanceCheckIn
+                  attendanceId={confirmedMine.attendanceId}
+                  checkedInAt={confirmedMine.checkedInAt}
+                  event={nextEvent}
+                  timeZone={settings.timezone}
+                  isAdmin={user.role === "ADMIN"}
+                  isSelf
+                  isOrganizer={confirmedMine.isOrganizer}
+                  block
+                />
+              ) : null}
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted">
                 <Link href={`/presencas?evento=${nextEvent.id}`} className="font-medium text-brand hover:text-ink">
                   Ver lista completa

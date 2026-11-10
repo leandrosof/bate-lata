@@ -23,6 +23,7 @@ import {
   type ActionState,
 } from "@/lib/action";
 import { recordAudit } from "@/lib/audit";
+import { checkInWindow } from "@/lib/check-in";
 import {
   planFirstMatch,
   planNextMatch,
@@ -241,7 +242,6 @@ async function createSession(
   await tx
     .update(attendances)
     .set({
-      checkedInAt: sql`coalesce(${attendances.checkedInAt}, ${attendances.createdAt})`,
       rotationStatus: "WAITING",
       queuePosition: null,
       queueTeamId: null,
@@ -252,6 +252,7 @@ async function createSession(
         eq(attendances.eventId, eventId),
         eq(attendances.status, "CONFIRMED"),
         eq(attendances.isOrganizer, false),
+        isNotNull(attendances.checkedInAt),
         ne(attendances.rotationStatus, "LEFT"),
       ),
     );
@@ -664,7 +665,7 @@ export async function addToRachaAction(
   }
 }
 
-export async function checkInRachaAction(
+export async function checkInAttendanceAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
@@ -675,7 +676,7 @@ export async function checkInRachaAction(
   if (!actor) return fail("Faça login para continuar.");
 
   try {
-    await db.transaction(async (tx) => {
+    const message = await db.transaction(async (tx) => {
       const [row] = await tx
         .select()
         .from(attendances)
@@ -686,10 +687,35 @@ export async function checkInRachaAction(
       if (actor.role !== "ADMIN" && row.userId !== actor.id) {
         throw new AppError("Você só pode marcar a sua própria chegada.");
       }
+      if (row.isOrganizer) {
+        throw new AppError("Organizadores não entram na fila do racha.");
+      }
+
+      const [event] = await tx
+        .select()
+        .from(events)
+        .where(eq(events.id, row.eventId))
+        .for("update")
+        .limit(1);
+      if (!event) throw new AppError("Evento não encontrado.");
+
+      const window = checkInWindow(event);
+      if (window.reason === "cancelled" || window.reason === "finished") {
+        throw new AppError("Este evento já foi encerrado ou cancelado.");
+      }
+      if (!window.open && actor.role !== "ADMIN") {
+        throw new AppError(
+          window.reason === "before"
+            ? "A chegada será liberada 2 horas antes do jogo. Marque apenas quando estiver no local."
+            : "A janela de chegada deste evento já encerrou.",
+        );
+      }
       if (row.status !== "CONFIRMED") {
         throw new AppError("Confirme presença antes de marcar a chegada.");
       }
-      if (row.checkedInAt && row.rotationStatus !== "LEFT") return;
+      if (row.checkedInAt && row.rotationStatus !== "LEFT") {
+        return "Chegada já registrada.";
+      }
 
       const [maxRow] = await tx
         .select({ position: sql<number>`max(${attendances.queuePosition})` })
@@ -714,10 +740,79 @@ export async function checkInRachaAction(
         .orderBy(desc(draws.createdAt))
         .limit(1);
       if (draw) await tryMountAnyCourt(tx, draw, row.eventId);
+
+      return "Chegada registrada. Bom jogo!";
     });
 
     revalidatePath("/", "layout");
-    return success("Chegada registrada.");
+    return success(message);
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function undoCheckInAttendanceAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = rachaAttendanceSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(firstZodMessage(parsed.error));
+
+  const actor = await getSessionUser();
+  if (!actor) return fail("Faça login para continuar.");
+
+  try {
+    const message = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(attendances)
+        .where(eq(attendances.id, parsed.data.attendanceId))
+        .for("update")
+        .limit(1);
+      if (!row) throw new AppError("Presença não encontrada.");
+      if (actor.role !== "ADMIN" && row.userId !== actor.id) {
+        throw new AppError("Você só pode alterar a sua própria chegada.");
+      }
+      if (!row.checkedInAt) return "A chegada já estava desmarcada.";
+      if (row.rotationStatus === "PLAYING") {
+        throw new AppError("Saia da partida antes de desfazer a chegada.");
+      }
+
+      const [activeGame] = await tx
+        .select({ id: gamePlayers.id })
+        .from(gamePlayers)
+        .innerJoin(games, eq(games.id, gamePlayers.gameId))
+        .where(
+          and(
+            eq(gamePlayers.userId, row.userId),
+            eq(games.eventId, row.eventId),
+            isNull(gamePlayers.leftAt),
+            inArray(games.status, ["IN_PROGRESS", "NOT_STARTED"]),
+          ),
+        )
+        .limit(1);
+      if (activeGame) {
+        throw new AppError("Saia da partida antes de desfazer a chegada.");
+      }
+
+      await tx
+        .update(attendances)
+        .set({
+          checkedInAt: null,
+          rotationStatus: "IDLE",
+          queuePosition: null,
+          queueTeamId: null,
+          leftAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(attendances.id, row.id));
+      await renumberQueue(tx, row.eventId);
+
+      return "Chegada desfeita. Marque novamente apenas quando estiver no local.";
+    });
+
+    revalidatePath("/", "layout");
+    return success(message);
   } catch (error) {
     return actionFailure(error);
   }

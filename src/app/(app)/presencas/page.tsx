@@ -22,6 +22,7 @@ import {
   adminRemoveAttendanceAction,
   toggleOrganizerAction,
 } from "@/actions/attendance";
+import { AttendanceCheckIn } from "@/components/features/attendance-check-in";
 import { AttendanceControls } from "@/components/features/attendance-controls";
 import { AutoRefresh } from "@/components/features/auto-refresh";
 import { OrganizerToggle } from "@/components/features/organizer-toggle";
@@ -31,6 +32,7 @@ import { EventPicker } from "@/components/features/event-picker";
 import { EventStatusBadge } from "@/components/features/status-badge";
 import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { SurfaceBadge } from "@/components/features/surface-badge";
+import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ActionButton } from "@/components/ui/action-button";
@@ -74,6 +76,7 @@ export default async function AttendancePage({
     : null;
 
   const isAdmin = user.role === "ADMIN";
+  const checkedInCount = roster?.confirmed.filter((row) => row.checkedInAt).length ?? 0;
   const reservedCount = (roster?.confirmed.length ?? 0) + (roster?.pendingPayment.length ?? 0);
   const isFull = Boolean(selected && roster && reservedCount >= selected.maxPlayers);
   const remaining = selected ? Math.max(selected.maxPlayers - reservedCount, 0) : 0;
@@ -199,6 +202,7 @@ export default async function AttendancePage({
 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="success">{roster.confirmed.length} confirmados</Badge>
+                <Badge tone="brand">{checkedInCount} já chegaram</Badge>
                 <Badge tone="warning">
                   {pendingPaymentCount} {pendingPaymentBadge}
                 </Badge>
@@ -217,6 +221,11 @@ export default async function AttendancePage({
                 </div>
               </div>
 
+              <Alert tone="warning" className="text-xs">
+                <strong>Cheguei</strong> deve ser marcado apenas quando o jogador estiver no local do jogo. É a
+                chegada que libera a entrada no racha; confirmar presença só reserva a vaga.
+              </Alert>
+
               {!eventIsOpen ? (
                 <p className="rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-center text-xs text-muted">
                   Inscrições encerradas. Não é mais possível confirmar presença.
@@ -229,19 +238,33 @@ export default async function AttendancePage({
                   isAdmin
                 />
               ) : (
-                <AttendanceControls
-                  eventId={selected.id}
-                  status={mine?.status ?? null}
-                  waitlistPosition={mine?.waitlistPosition ?? null}
-                  isFull={isFull}
-                  allowWaitlist={settings.allowWaitlist}
-                  isOrganizer={Boolean(mine?.isOrganizer)}
-                  attendanceId={mine?.attendanceId}
-                  paymentProofUpload={selected.paymentProofUpload}
-                  paymentProofId={mine?.paymentProofId ?? null}
-                  paymentProofNote={mine?.paymentProofNote ?? null}
-                  requiresPayment={selected.paymentMode === "PAID"}
-                />
+                <div className="space-y-2">
+                  <AttendanceControls
+                    eventId={selected.id}
+                    status={mine?.status ?? null}
+                    waitlistPosition={mine?.waitlistPosition ?? null}
+                    isFull={isFull}
+                    allowWaitlist={settings.allowWaitlist}
+                    isOrganizer={Boolean(mine?.isOrganizer)}
+                    attendanceId={mine?.attendanceId}
+                    paymentProofUpload={selected.paymentProofUpload}
+                    paymentProofId={mine?.paymentProofId ?? null}
+                    paymentProofNote={mine?.paymentProofNote ?? null}
+                    requiresPayment={selected.paymentMode === "PAID"}
+                  />
+                  {mine?.status === "CONFIRMED" && !mine.isOrganizer ? (
+                    <AttendanceCheckIn
+                      attendanceId={mine.attendanceId}
+                      checkedInAt={mine.checkedInAt}
+                      event={selected}
+                      timeZone={settings.timezone}
+                      isAdmin={isAdmin}
+                      isSelf
+                      isOrganizer={mine.isOrganizer}
+                      block
+                    />
+                  ) : null}
+                </div>
               )}
             </CardBody>
           </Card>
@@ -372,33 +395,50 @@ export default async function AttendancePage({
                             ) : null}
                           </p>
                           {player.nickname ? <p className="text-[11px] text-muted">@{player.nickname}</p> : null}
+                          {player.checkedInAt ? null : (
+                            <p className="text-[10px] uppercase tracking-wider text-muted">Ainda não chegou</p>
+                          )}
                         </div>
-                        {isAdmin ? (
-                          <div className="flex items-center gap-0.5">
-                            {player.userId === user.id ? (
+                        <div className="flex items-center gap-0.5">
+                          {isAdmin || player.userId === user.id ? (
+                            <AttendanceCheckIn
+                              attendanceId={player.attendanceId}
+                              checkedInAt={player.checkedInAt}
+                              event={selected}
+                              timeZone={settings.timezone}
+                              isAdmin={isAdmin}
+                              isSelf={player.userId === user.id}
+                              playerName={player.name}
+                              compact
+                            />
+                          ) : null}
+                          {isAdmin ? (
+                            <>
+                              {player.userId === user.id ? (
+                                <ActionButton
+                                  action={toggleOrganizerAction}
+                                  fields={{ attendanceId: player.attendanceId }}
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  confirmMessage="Marcar você como organizador? Você sai da lista de jogadores e não entra nos times."
+                                  title="Só organizar"
+                                >
+                                  <UserCog className="h-3.5 w-3.5" aria-hidden />
+                                </ActionButton>
+                              ) : null}
                               <ActionButton
-                                action={toggleOrganizerAction}
+                                action={adminRemoveAttendanceAction}
                                 fields={{ attendanceId: player.attendanceId }}
                                 variant="ghost"
                                 size="icon-sm"
-                                confirmMessage="Marcar você como organizador? Você sai da lista de jogadores e não entra nos times."
-                                title="Só organizar"
+                                confirmMessage={`Remover ${player.name} da lista?`}
+                                title="Remover presença"
                               >
-                                <UserCog className="h-3.5 w-3.5" aria-hidden />
+                                <X className="h-3.5 w-3.5" aria-hidden />
                               </ActionButton>
-                            ) : null}
-                            <ActionButton
-                              action={adminRemoveAttendanceAction}
-                              fields={{ attendanceId: player.attendanceId }}
-                              variant="ghost"
-                              size="icon-sm"
-                              confirmMessage={`Remover ${player.name} da lista?`}
-                              title="Remover presença"
-                            >
-                              <X className="h-3.5 w-3.5" aria-hidden />
-                            </ActionButton>
-                          </div>
-                        ) : null}
+                            </>
+                          ) : null}
+                        </div>
                       </li>
                     ))}
                   </ul>

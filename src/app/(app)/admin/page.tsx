@@ -16,6 +16,7 @@ import { listAnnouncements } from "@/db/queries/announcements";
 import { listAuditLogs } from "@/db/queries/audit";
 import { getActiveOperationalEvent, getNextEvent, getEventRoster, listAllEvents } from "@/db/queries/events";
 import { listAllPlayers, countGamesPlayed } from "@/db/queries/players";
+import { AutoRefresh } from "@/components/features/auto-refresh";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle, SectionTitle } from "@/components/ui/card";
@@ -81,6 +82,7 @@ export default async function AdminHomePage() {
 
   return (
     <div className="space-y-5">
+      <AutoRefresh intervalMs={15000} />
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatCard label="Jogadores ativos" value={activePlayers} icon={<Users className="h-4 w-4" />} accent="brand" />
         <StatCard label="Eventos futuros" value={upcoming} icon={<CalendarDays className="h-4 w-4" />} accent="success" />
@@ -153,6 +155,7 @@ export default async function AdminHomePage() {
                 </p>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   <Badge tone="success">{nextEvent.confirmedCount} confirmados</Badge>
+                  <Badge tone="brand">{nextEvent.checkedInCount} já chegaram</Badge>
                   <Badge tone="warning">{nextEvent.waitlistCount} na espera</Badge>
                   <Badge>{roster?.pending.length ?? 0} sem resposta</Badge>
                   <Badge tone="brand">{nextEvent.maxPlayers} vagas</Badge>

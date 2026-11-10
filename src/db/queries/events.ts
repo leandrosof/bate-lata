@@ -26,6 +26,7 @@ export type RosterPlayer = {
 
 export type EventSummary = EventRow & {
   confirmedCount: number;
+  checkedInCount: number;
   pendingPaymentCount: number;
   reservedCount: number;
   waitlistCount: number;
@@ -44,6 +45,7 @@ async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
       eventId: attendances.eventId,
       status: attendances.status,
       total: count(),
+      checkedIn: count(attendances.checkedInAt),
     })
     .from(attendances)
     .where(eq(attendances.isOrganizer, false))
@@ -53,6 +55,9 @@ async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
     const confirmedCount = counts
       .filter((row) => row.eventId === event.id && row.status === "CONFIRMED")
       .reduce((total, row) => total + Number(row.total), 0);
+    const checkedInCount = counts
+      .filter((row) => row.eventId === event.id && row.status === "CONFIRMED")
+      .reduce((total, row) => total + Number(row.checkedIn), 0);
     const pendingPaymentCount = counts
       .filter((row) => row.eventId === event.id && row.status === "PENDING_PAYMENT")
       .reduce((total, row) => total + Number(row.total), 0);
@@ -62,6 +67,7 @@ async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
     return {
       ...event,
       confirmedCount,
+      checkedInCount,
       pendingPaymentCount,
       reservedCount: confirmedCount + pendingPaymentCount,
       waitlistCount,
