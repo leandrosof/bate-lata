@@ -843,20 +843,19 @@ export async function undoCheckInAttendanceAction(
         throw new AppError("Você só pode alterar a sua própria chegada.");
       }
       if (!row.checkedInAt) return "A chegada já estava desmarcada.";
-      if (row.rotationStatus === "PLAYING") {
-        throw new AppError("Saia da partida antes de desfazer a chegada.");
-      }
 
       const [activeGame] = await tx
         .select({ id: gamePlayers.id })
         .from(gamePlayers)
         .innerJoin(games, eq(games.id, gamePlayers.gameId))
+        .innerJoin(draws, eq(draws.id, games.drawId))
         .where(
           and(
             eq(gamePlayers.userId, row.userId),
             eq(games.eventId, row.eventId),
             isNull(gamePlayers.leftAt),
             inArray(games.status, ["IN_PROGRESS", "NOT_STARTED"]),
+            eq(draws.status, "IN_PROGRESS"),
           ),
         )
         .limit(1);
@@ -1759,6 +1758,16 @@ export async function endRachaAction(
         .update(draws)
         .set({ status: "FINISHED", finishedAt: new Date() })
         .where(eq(draws.id, current.id));
+      await tx
+        .update(attendances)
+        .set({
+          rotationStatus: "IDLE",
+          queuePosition: null,
+          queueTeamId: null,
+          leftAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(attendances.eventId, current.eventId));
     });
 
     await recordAudit({

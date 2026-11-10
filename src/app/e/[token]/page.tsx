@@ -206,7 +206,12 @@ export default async function PublicEventPage({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div
+          className={cn(
+            "grid gap-3",
+            event.paymentMode === "PAID" ? "sm:grid-cols-4" : "sm:grid-cols-3",
+          )}
+        >
           <Card>
             <CardBody className="text-center">
               <p className="font-display text-3xl font-bold text-ink">
@@ -215,12 +220,14 @@ export default async function PublicEventPage({
               <p className="text-[11px] uppercase tracking-wider text-muted">confirmados</p>
             </CardBody>
           </Card>
-          <Card>
-            <CardBody className="text-center">
-              <p className="font-display text-3xl font-bold text-ink">{roster.pendingPayment.length}</p>
-              <p className="text-[11px] uppercase tracking-wider text-muted">aguardando Pix</p>
-            </CardBody>
-          </Card>
+          {event.paymentMode === "PAID" ? (
+            <Card>
+              <CardBody className="text-center">
+                <p className="font-display text-3xl font-bold text-ink">{roster.pendingPayment.length}</p>
+                <p className="text-[11px] uppercase tracking-wider text-muted">aguardando Pix</p>
+              </CardBody>
+            </Card>
+          ) : null}
           <Card>
             <CardBody className="text-center">
               <p className="font-display text-3xl font-bold text-ink">{full ? 0 : remaining}</p>

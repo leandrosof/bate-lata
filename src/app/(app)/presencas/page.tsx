@@ -211,9 +211,11 @@ export default async function AttendancePage({
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="success">{roster.confirmed.length} confirmados</Badge>
                 <Badge tone="brand">{checkedInCount} já chegaram</Badge>
-                <Badge tone="warning">
-                  {pendingPaymentCount} {pendingPaymentBadge}
-                </Badge>
+                {selected.paymentMode === "PAID" && pendingPaymentCount > 0 ? (
+                  <Badge tone="warning">
+                    {pendingPaymentCount} {pendingPaymentBadge}
+                  </Badge>
+                ) : null}
                 <Badge tone="warning">{roster.waitlist.length} na espera</Badge>
                 <Badge tone="neutral">{roster.pending.length} sem resposta</Badge>
                 <div className="ml-auto">
