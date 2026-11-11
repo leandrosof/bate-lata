@@ -133,7 +133,7 @@ export default async function RachaPage({
 
   return (
     <div>
-      <AutoRefresh intervalMs={15000} />
+      {session ? <AutoRefresh intervalMs={30000} /> : null}
       <PageHeader
         eyebrow="Jogos livres"
         title="Racha"

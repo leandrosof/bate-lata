@@ -3,6 +3,7 @@ import { ArrowLeft, FileText, MessageCircle } from "lucide-react";
 import { Brand } from "@/components/layout/brand";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
+import { BRAND_LOGO } from "@/lib/branding";
 import { getSettings } from "@/lib/settings";
 import { formatDateLong } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -11,9 +12,7 @@ export const metadata = { title: "Termos de Uso" };
 
 export default async function TermsPage() {
   const settings = await getSettings();
-  const logoUrl = settings.logoData
-    ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
-    : settings.logoUrl;
+  const logoUrl = BRAND_LOGO;
 
   return (
     <div className="min-h-dvh">

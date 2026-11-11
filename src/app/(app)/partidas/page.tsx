@@ -93,7 +93,7 @@ export default async function MatchesPage({
           action={<GameStatusBadge status={game.status} />}
         />
 
-        {isLive ? <AutoRefresh intervalMs={12000} /> : null}
+        {isLive ? <AutoRefresh intervalMs={30000} /> : null}
 
         <div className="space-y-4">
           <Card data-testid="scoreboard">
@@ -414,7 +414,7 @@ export default async function MatchesPage({
         }
       />
 
-      {liveGames.length > 0 ? <AutoRefresh intervalMs={15000} /> : null}
+      {liveGames.length > 0 ? <AutoRefresh intervalMs={30000} /> : null}
 
       {liveGames.length === 0 && recent.length === 0 ? (
         <EmptyState

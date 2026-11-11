@@ -10,16 +10,14 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Label, Select, Switch, Textarea } from "@/components/ui/input";
-import { EventCoverUpload } from "@/components/features/image-uploads";
 import { EventPriceBadge } from "@/components/features/event-price-badge";
 import { ShareEventButton } from "@/components/features/share-event-button";
 import { SurfaceBadge } from "@/components/features/surface-badge";
 import { Progress } from "@/components/ui/progress";
-import { listAllEvents } from "@/db/queries/events";
+import { listAllEvents, type EventBase } from "@/db/queries/events";
 import { getSettings } from "@/lib/settings";
 import { formatTime, toDateTimeLocal } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import type { EventRow } from "@/db/schema";
 
 export const metadata = { title: "Eventos" };
 
@@ -28,7 +26,7 @@ function EventFields({
   timeZone,
   idPrefix,
 }: {
-  event?: EventRow;
+  event?: EventBase;
   timeZone: string;
   idPrefix: string;
 }) {
@@ -335,13 +333,6 @@ export default async function AdminEventsPage({
                       subtitle={`${event.confirmedCount} confirmados · ${event.waitlistCount} na espera`}
                       action={<Briefcase className="h-4 w-4 text-muted" aria-hidden />}
                     >
-                      <div className="mb-3 space-y-2">
-                        <EventCoverUpload
-                          eventId={event.id}
-                          hasCover={Boolean(event.coverMime)}
-                          version={event.coverUpdatedAt?.getTime() ?? null}
-                        />
-                      </div>
                       <ActionForm
                         action={updateEventAction}
                         hiddenFields={{ eventId: event.id }}

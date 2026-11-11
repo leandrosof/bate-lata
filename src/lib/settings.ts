@@ -4,12 +4,36 @@ import { db } from "@/db/client";
 import { seasons, settings } from "@/db/schema";
 import type { Season, Settings } from "@/db/schema";
 
-export const getSettings = cache(async (): Promise<Settings> => {
-  const rows = await db.select().from(settings).where(eq(settings.id, 1)).limit(1);
+export type PublicSettings = Omit<
+  Settings,
+  "logoUrl" | "logoData" | "logoMime" | "logoUpdatedAt"
+>;
+
+const settingsColumns = {
+  id: settings.id,
+  siteName: settings.siteName,
+  tagline: settings.tagline,
+  aboutText: settings.aboutText,
+  rulesText: settings.rulesText,
+  contactText: settings.contactText,
+  pixKey: settings.pixKey,
+  pixRecipientName: settings.pixRecipientName,
+  pixInstructions: settings.pixInstructions,
+  rankingEnabled: settings.rankingEnabled,
+  pointsWin: settings.pointsWin,
+  pointsLoss: settings.pointsLoss,
+  defaultTeamSize: settings.defaultTeamSize,
+  allowWaitlist: settings.allowWaitlist,
+  timezone: settings.timezone,
+  updatedAt: settings.updatedAt,
+};
+
+export const getSettings = cache(async (): Promise<PublicSettings> => {
+  const rows = await db.select(settingsColumns).from(settings).where(eq(settings.id, 1)).limit(1);
   if (rows[0]) return rows[0];
 
   await db.insert(settings).values({ id: 1 }).onConflictDoNothing({ target: settings.id });
-  const created = await db.select().from(settings).where(eq(settings.id, 1)).limit(1);
+  const created = await db.select(settingsColumns).from(settings).where(eq(settings.id, 1)).limit(1);
   if (!created[0]) throw new Error("Configurações não encontradas.");
   return created[0];
 });

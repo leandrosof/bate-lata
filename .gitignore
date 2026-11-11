@@ -38,6 +38,7 @@ yarn-error.log*
 
 # local database and dev artifacts
 /.data
+/backups
 /test-results
 /playwright-report
 /blob-report

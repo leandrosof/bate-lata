@@ -9,6 +9,8 @@ import type { User } from "@/db/schema";
 export const SESSION_COOKIE = "arena_session";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
+export type SessionUser = Omit<User, "passwordHash" | "avatarData" | "avatarOriginalData">;
+
 export function hashSessionToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -45,22 +47,45 @@ export async function createSession(userId: string): Promise<void> {
   });
 }
 
-export const getSessionUser = cache(async (): Promise<User | null> => {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
   const rows = await db
-    .select({ user: users })
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      nickname: users.nickname,
+      avatarMime: users.avatarMime,
+      avatarUpdatedAt: users.avatarUpdatedAt,
+      avatarOriginalMime: users.avatarOriginalMime,
+      emailVerifiedAt: users.emailVerifiedAt,
+      emailNotifications: users.emailNotifications,
+      active: users.active,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.tokenHash, hashSessionToken(token)), gt(sessions.expiresAt, new Date())))
     .limit(1);
 
   const found = rows[0];
-  if (!found || !found.user.active) return null;
-  return found.user;
+  if (!found || !found.active) return null;
+  return found;
 });
+
+export async function getSessionPasswordHash(userId: string): Promise<string | null> {
+  const rows = await db
+    .select({ passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return rows[0]?.passwordHash ?? null;
+}
 
 export async function destroySession(): Promise<void> {
   const store = await cookies();

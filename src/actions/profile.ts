@@ -16,7 +16,13 @@ import {
 } from "@/lib/action";
 import { recordAudit } from "@/lib/audit";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { createSession, destroySession, getSessionUser, revokeAllSessions } from "@/lib/session";
+import {
+  createSession,
+  destroySession,
+  getSessionPasswordHash,
+  getSessionUser,
+  revokeAllSessions,
+} from "@/lib/session";
 import {
   changePasswordSchema,
   deleteAccountSchema,
@@ -89,7 +95,9 @@ export async function changePasswordAction(
   if (!parsed.success) return fail(firstZodMessage(parsed.error), zodFieldErrors(parsed.error));
 
   try {
-    const valid = await verifyPassword(parsed.data.currentPassword, actor.passwordHash);
+    const currentPasswordHash = await getSessionPasswordHash(actor.id);
+    if (!currentPasswordHash) return fail("Sua sessão expirou. Entre novamente.");
+    const valid = await verifyPassword(parsed.data.currentPassword, currentPasswordHash);
     if (!valid) {
       return fail("Senha atual incorreta.", { currentPassword: ["Senha atual incorreta."] });
     }
@@ -141,7 +149,9 @@ export async function deleteAccountAction(
     return fail(firstZodMessage(parsed.error), zodFieldErrors(parsed.error));
   }
 
-  const valid = await verifyPassword(parsed.data.password, actor.passwordHash);
+  const currentPasswordHash = await getSessionPasswordHash(actor.id);
+  if (!currentPasswordHash) return fail("Sua sessão expirou. Entre novamente.");
+  const valid = await verifyPassword(parsed.data.password, currentPasswordHash);
   if (!valid) {
     return fail("Senha incorreta.", { password: ["Senha incorreta."] });
   }

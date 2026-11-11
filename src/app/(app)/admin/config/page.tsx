@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Input, Label, Select, Switch, Textarea } from "@/components/ui/input";
-import { LogoUpload } from "@/components/features/image-uploads";
 import { getSettings, listSeasons } from "@/lib/settings";
 import { toDateInput } from "@/lib/time";
 import { TEAM_SIZE_OPTIONS } from "@/lib/teams";
@@ -47,26 +46,6 @@ export default async function AdminSettingsPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-line/70 p-3">
-              <LogoUpload
-                hasLogo={Boolean(settings.logoData)}
-                version={settings.logoUpdatedAt?.getTime() ?? null}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="logoUrl">URL externa da logo (opcional)</Label>
-              <Input
-                id="logoUrl"
-                name="logoUrl"
-                type="url"
-                defaultValue={settings.logoUrl ?? ""}
-                placeholder="https://exemplo.com/logo.png"
-              />
-              <p className="mt-1 text-[11px] text-muted">
-                Deixe vazio para usar o ícone padrão. Recomendado: PNG quadrado com pelo menos 256×256.
-              </p>
-            </div>
 
             <div>
               <Label htmlFor="aboutText">Sobre o grupo</Label>

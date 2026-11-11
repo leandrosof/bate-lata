@@ -33,10 +33,10 @@ export async function generateMetadata(): Promise<Metadata> {
     manifest: "/manifest.webmanifest",
     icons: {
       icon: [
-        { url: "/api/icon/32", sizes: "32x32", type: "image/png" },
-        { url: "/api/icon/192", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       ],
-      apple: [{ url: "/api/icon/180", sizes: "180x180", type: "image/png" }],
+      apple: [{ url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" }],
     },
     appleWebApp: { capable: true, title: siteName, statusBarStyle: "black-translucent" },
     openGraph: {

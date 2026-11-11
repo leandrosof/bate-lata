@@ -239,10 +239,6 @@ export const settingsSchema = z.object({
   pixInstructions: z.string().trim().max(500, "Instruções muito longas.").optional(),
   siteName: z.string().trim().min(2, "Informe o nome do site.").max(60, "Nome muito longo."),
   tagline: z.string().trim().max(80, "Slogan muito longo.").optional(),
-  logoUrl: z
-    .union([z.literal(""), z.url("Informe uma URL válida.")])
-    .optional()
-    .transform((value) => (value ? value : null)),
   rankingEnabled: formBoolean.optional().default(false),
   pointsWin: z.coerce.number().int().min(0, "Mínimo 0.").max(100, "Máximo 100."),
   pointsLoss: z.coerce.number().int().min(0, "Mínimo 0.").max(100, "Máximo 100."),

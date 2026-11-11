@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, ne } from "drizzle-orm";
 import { db } from "../client";
 import { attendances, draws, events, games, paymentProofs, users } from "../schema";
 import type { EventRow } from "../schema";
@@ -24,12 +24,36 @@ export type RosterPlayer = {
   paymentProofImageDeletedAt: Date | null;
 };
 
-export type EventSummary = EventRow & {
+export type EventBase = Omit<EventRow, "coverData" | "coverMime" | "coverUpdatedAt">;
+
+export type EventSummary = EventBase & {
   confirmedCount: number;
   checkedInCount: number;
   pendingPaymentCount: number;
   reservedCount: number;
   waitlistCount: number;
+};
+
+const eventColumns = {
+  id: events.id,
+  title: events.title,
+  startsAt: events.startsAt,
+  endsAt: events.endsAt,
+  publicToken: events.publicToken,
+  venueName: events.venueName,
+  address: events.address,
+  surface: events.surface,
+  maxPlayers: events.maxPlayers,
+  paymentMode: events.paymentMode,
+  priceCents: events.priceCents,
+  paymentProofUpload: events.paymentProofUpload,
+  notes: events.notes,
+  status: events.status,
+  rotationRule: events.rotationRule,
+  maxStreak: events.maxStreak,
+  createdById: events.createdById,
+  createdAt: events.createdAt,
+  updatedAt: events.updatedAt,
 };
 
 export type OperationalEvent = EventSummary & {
@@ -38,7 +62,7 @@ export type OperationalEvent = EventSummary & {
   activeHours: number;
 };
 
-async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
+async function attachCounts(rows: EventBase[]): Promise<EventSummary[]> {
   if (rows.length === 0) return [];
   const counts = await db
     .select({
@@ -76,14 +100,14 @@ async function attachCounts(rows: EventRow[]): Promise<EventSummary[]> {
 }
 
 export async function getEventById(eventId: string): Promise<EventSummary | null> {
-  const rows = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+  const rows = await db.select(eventColumns).from(events).where(eq(events.id, eventId)).limit(1);
   if (!rows[0]) return null;
   const [summary] = await attachCounts(rows);
   return summary;
 }
 
 export async function getEventByPublicToken(token: string): Promise<EventSummary | null> {
-  const rows = await db.select().from(events).where(eq(events.publicToken, token)).limit(1);
+  const rows = await db.select(eventColumns).from(events).where(eq(events.publicToken, token)).limit(1);
   if (!rows[0]) return null;
   const [summary] = await attachCounts(rows);
   return summary;
@@ -92,7 +116,7 @@ export async function getEventByPublicToken(token: string): Promise<EventSummary
 export async function getNextEvent(reference = new Date()): Promise<EventSummary | null> {
   const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
   const rows = await db
-    .select()
+    .select(eventColumns)
     .from(events)
     .where(and(eq(events.status, "SCHEDULED"), gte(events.startsAt, threshold)))
     .orderBy(asc(events.startsAt))
@@ -104,7 +128,7 @@ export async function getNextEvent(reference = new Date()): Promise<EventSummary
 export async function listUpcomingEvents(reference = new Date()): Promise<EventSummary[]> {
   const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
   const rows = await db
-    .select()
+    .select(eventColumns)
     .from(events)
     .where(and(eq(events.status, "SCHEDULED"), gte(events.startsAt, threshold)))
     .orderBy(asc(events.startsAt));
@@ -116,7 +140,7 @@ export async function listEventsByStatus(
   limit = 80,
 ): Promise<EventSummary[]> {
   const rows = await db
-    .select()
+    .select(eventColumns)
     .from(events)
     .where(eq(events.status, status))
     .orderBy(desc(events.startsAt))
@@ -142,14 +166,87 @@ export async function countEventsByStatus(): Promise<{
   };
 }
 
-export async function listFinishedPublicEvents(limit = 80): Promise<EventSummary[]> {
+export async function getNextPublicEvent(reference = new Date()): Promise<EventSummary | null> {
+  const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
   const rows = await db
-    .select()
+    .select(eventColumns)
+    .from(events)
+    .where(
+      and(
+        eq(events.status, "SCHEDULED"),
+        gte(events.startsAt, threshold),
+        isNotNull(events.publicToken),
+      ),
+    )
+    .orderBy(asc(events.startsAt))
+    .limit(1);
+  const [summary] = await attachCounts(rows);
+  return summary ?? null;
+}
+
+export async function listUpcomingPublicEventsPage(
+  reference = new Date(),
+  limit = 6,
+  offset = 0,
+  excludeId?: string,
+): Promise<EventSummary[]> {
+  const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
+  const conditions = [
+    eq(events.status, "SCHEDULED"),
+    gte(events.startsAt, threshold),
+    isNotNull(events.publicToken),
+  ];
+  if (excludeId) conditions.push(ne(events.id, excludeId));
+
+  const rows = await db
+    .select(eventColumns)
+    .from(events)
+    .where(and(...conditions))
+    .orderBy(asc(events.startsAt))
+    .limit(limit)
+    .offset(offset);
+  return attachCounts(rows);
+}
+
+export async function countUpcomingPublicEvents(
+  reference = new Date(),
+  excludeId?: string,
+): Promise<number> {
+  const threshold = new Date(reference.getTime() - 1000 * 60 * 60 * 6);
+  const conditions = [
+    eq(events.status, "SCHEDULED"),
+    gte(events.startsAt, threshold),
+    isNotNull(events.publicToken),
+  ];
+  if (excludeId) conditions.push(ne(events.id, excludeId));
+
+  const [row] = await db
+    .select({ total: count() })
+    .from(events)
+    .where(and(...conditions));
+  return Number(row?.total ?? 0);
+}
+
+export async function listFinishedPublicEvents(
+  limit = 80,
+  offset = 0,
+): Promise<EventSummary[]> {
+  const rows = await db
+    .select(eventColumns)
     .from(events)
     .where(and(eq(events.status, "FINISHED"), isNotNull(events.publicToken)))
     .orderBy(desc(events.startsAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
   return attachCounts(rows);
+}
+
+export async function countFinishedPublicEvents(): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(events)
+    .where(and(eq(events.status, "FINISHED"), isNotNull(events.publicToken)));
+  return Number(row?.total ?? 0);
 }
 
 export async function listOperationalEvents(reference = new Date()): Promise<OperationalEvent[]> {
@@ -184,7 +281,7 @@ export async function listOperationalEvents(reference = new Date()): Promise<Ope
   const missingIds = [...activeStartedAt.keys()].filter((id) => !upcomingIds.has(id));
   const extraRows =
     missingIds.length > 0
-      ? await db.select().from(events).where(inArray(events.id, missingIds))
+      ? await db.select(eventColumns).from(events).where(inArray(events.id, missingIds))
       : [];
   const extra = await attachCounts(extraRows);
 
@@ -229,12 +326,12 @@ export async function getActiveOperationalEvent(
 }
 
 export async function listRecentEvents(limit = 6): Promise<EventSummary[]> {
-  const rows = await db.select().from(events).orderBy(desc(events.startsAt)).limit(limit);
+  const rows = await db.select(eventColumns).from(events).orderBy(desc(events.startsAt)).limit(limit);
   return attachCounts(rows);
 }
 
 export async function listAllEvents(limit = 80): Promise<EventSummary[]> {
-  const rows = await db.select().from(events).orderBy(desc(events.startsAt)).limit(limit);
+  const rows = await db.select(eventColumns).from(events).orderBy(desc(events.startsAt)).limit(limit);
   return attachCounts(rows);
 }
 

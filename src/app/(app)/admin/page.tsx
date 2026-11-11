@@ -84,7 +84,7 @@ export default async function AdminHomePage() {
 
   return (
     <div className="space-y-5">
-      <AutoRefresh intervalMs={15000} />
+      <AutoRefresh intervalMs={60000} />
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatCard label="Jogadores ativos" value={activePlayers} icon={<Users className="h-4 w-4" />} accent="brand" />
         <StatCard label="Eventos futuros" value={upcoming} icon={<CalendarDays className="h-4 w-4" />} accent="success" />

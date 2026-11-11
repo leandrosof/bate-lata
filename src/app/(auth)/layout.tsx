@@ -1,12 +1,11 @@
 import { Brand } from "@/components/layout/brand";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { BRAND_LOGO } from "@/lib/branding";
 import { getSettings } from "@/lib/settings";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings();
-  const logoUrl = settings.logoData
-    ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
-    : settings.logoUrl;
+  const logoUrl = BRAND_LOGO;
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden">

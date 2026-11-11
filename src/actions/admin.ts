@@ -444,7 +444,6 @@ export async function updateSettingsAction(
       .set({
         siteName: parsed.data.siteName.trim(),
         tagline: parsed.data.tagline?.trim() || "Organize. Sorteie. Jogue.",
-        logoUrl: parsed.data.logoUrl,
         aboutText: parsed.data.aboutText?.trim() || null,
         rulesText: parsed.data.rulesText?.trim() || null,
         contactText: parsed.data.contactText?.trim() || null,

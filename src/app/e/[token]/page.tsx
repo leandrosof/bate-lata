@@ -15,6 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { listEventGames, listRecentFinishedGames } from "@/db/queries/games";
 import { getEventByPublicToken, getEventRoster, listUpcomingEvents } from "@/db/queries/events";
+import { BRAND_LOGO } from "@/lib/branding";
 import { getSessionUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { formatCents } from "@/lib/money";
@@ -50,9 +51,7 @@ export default async function PublicEventPage({
   ]);
   const results = games.filter((game) => game.status === "FINISHED");
   const otherEvents = upcoming.filter((item) => item.id !== event.id).slice(0, 3);
-  const logoUrl = settings.logoData
-    ? `/api/logo?v=${settings.logoUpdatedAt?.getTime() ?? 0}`
-    : settings.logoUrl;
+  const logoUrl = BRAND_LOGO;
   const isPast = event.status === "FINISHED" || event.status === "CANCELLED";
   const remaining = Math.max(event.maxPlayers - event.reservedCount, 0);
   const full = remaining === 0;
@@ -99,11 +98,7 @@ export default async function PublicEventPage({
         <div className="relative overflow-hidden rounded-3xl border border-line">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={
-              event.coverMime
-                ? `/api/event-cover/${event.id}?v=${event.coverUpdatedAt?.getTime() ?? 0}`
-                : surfaceCover(event.surface)
-            }
+            src={surfaceCover(event.surface)}
             alt=""
             className="absolute inset-0 h-full w-full object-cover opacity-65 blur-[1px]"
           />
@@ -332,11 +327,7 @@ export default async function PublicEventPage({
                   <div className="relative h-24 bg-gradient-to-br from-brand/30 to-[#38bdf8]/10">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={
-                        item.coverMime
-                          ? `/api/event-cover/${item.id}?v=${item.coverUpdatedAt?.getTime() ?? 0}`
-                          : surfaceCover(item.surface)
-                      }
+                      src={surfaceCover(item.surface)}
                       alt=""
                       className="h-full w-full object-cover"
                     />

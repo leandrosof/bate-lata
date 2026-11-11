@@ -103,7 +103,7 @@ export default async function HomePage() {
                 <span className="block truncate font-semibold text-ink">{liveGame.eventTitle}</span>
               </p>
             </div>
-            <AutoRefresh intervalMs={15000} />
+            <AutoRefresh intervalMs={60000} />
             <Link
               href={`/racha?evento=${liveGame.eventId}`}
               className="shrink-0 whitespace-nowrap text-xs font-semibold text-brand hover:text-ink"

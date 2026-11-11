@@ -40,8 +40,6 @@ export type CalendarEvent = {
   pendingPaymentCount: number;
   waitlistCount: number;
   publicToken: string | null;
-  coverMime: string | null;
-  coverUpdatedAt: string | null;
 };
 
 function dayKey(date: Date) {
